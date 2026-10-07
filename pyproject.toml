@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "power-studies-ai"
+version = "0.1.0"
+description = "Estudios eléctricos asistidos por agentes de IA: un modelo neutro, varias herramientas (pandapower, OpenDSS, PowerFactory, ATP, ETAP, PVsyst), verificación normativa colombiana e informe automático."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Juan Fernando Montoya" }]
+dependencies = [
+    "pydantic>=2",
+    "pyyaml",
+    "numpy",
+    "pandas",
+    "networkx",
+    "matplotlib",
+    "python-docx",
+    "openpyxl",
+    "pandapower>=2.14",
+]
+
+[project.optional-dependencies]
+opendss = ["opendssdirect.py"]
+dev = ["pytest"]
+
+[project.scripts]
+power-studies = "power_studies.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["power_studies*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::FutureWarning", "ignore::DeprecationWarning", "ignore::UserWarning"]

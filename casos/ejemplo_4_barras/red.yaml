@@ -1,0 +1,88 @@
+# Ejemplo didáctico de 4 barras (Sección 6 del informe de flujo de cargas,
+# Taller Integrador, subestación 75 kVA). Sus resultados se calcularon con un
+# Newton-Raphson propio y sirven como CASO DE VALIDACIÓN de los adaptadores:
+# cualquier herramienta nueva debe reproducir la sección `referencia`.
+proyecto: Ejemplo didáctico 4 barras
+descripcion: >
+  Red externa 13,2 kV, línea aérea ACSR 1/0 de 1 km, transformador 75 kVA
+  13,2/0,22 kV, alimentador de BT 3x2/0 AWG Cu de 80 m y dos cargas.
+autor: Juan Fernando Montoya
+frecuencia_Hz: 60
+
+barras:
+  - {id: B1, nombre: "B1 (MT, slack)", un_kV: 13.2}
+  - {id: B2, nombre: "B2 (MT)", un_kV: 13.2}
+  - {id: B3, nombre: "B3 (BT)", un_kV: 0.22}
+  - {id: B4, nombre: "B4 (tablero)", un_kV: 0.22}
+
+redes_externas:
+  - id: RED
+    nombre: Red externa
+    barra: B1
+    u_pu: 1.0
+    scc_max_MVA: 100
+    r_x_max: 0.1
+    origen: supuesto
+    nota: Potencia de cortocircuito no dada en el ejemplo; solo afecta cortocircuito, no el flujo.
+
+lineas:
+  - id: L_MT
+    nombre: Línea MT ACSR 1/0
+    desde: B1
+    hasta: B2
+    longitud_km: 1.0
+    r_ohm_km: 0.54
+    x_ohm_km: 0.45
+    in_kA: 0.242
+    tipo: aerea
+    material: cu   # el ejemplo escala la línea con el mismo factor 234,5 (ver Sec. 6.2)
+    temperatura_ref_C: 20
+    conductor: ACSR 1/0
+  - id: L_BT
+    nombre: Cable BT 3x2/0 AWG Cu
+    desde: B3
+    hasta: B4
+    longitud_km: 0.08
+    r_ohm_km: 0.33
+    x_ohm_km: 0.141
+    in_kA: 0.175
+    tipo: cable
+    material: cu
+    temperatura_ref_C: 75
+    conductor: 2/0 AWG Cu (NTC 2050 Cap. 9 Tabla 9)
+
+transformadores:
+  - id: T1
+    nombre: T1 75 kVA
+    barra_at: B2
+    barra_bt: B3
+    sn_MVA: 0.075
+    un_at_kV: 13.2
+    un_bt_kV: 0.22
+    uk_pct: 3.5
+    pcu_kW: 1.1
+    grupo: Yy0      # el ejemplo no modela desfase angular
+    tap_lado: at
+    tap_paso_pct: 2.5
+    tap_min: -2
+    tap_max: 2
+
+cargas:
+  - {id: C3, nombre: Carga B3, barra: B3, p_MW: 0.015, q_Mvar: 0.0072648}
+  - {id: C4, nombre: Carga B4, barra: B4, p_MW: 0.045, q_Mvar: 0.0217945}
+
+escenarios:
+  - {id: E1, descripcion: "20 °C, tap nominal", temperatura_C: 20}
+  - {id: E2, descripcion: "75 °C, tap nominal", temperatura_C: 75}
+  - {id: E3, descripcion: "75 °C, tap -2,5 % en AT (eleva BT)", temperatura_C: 75, taps: {T1: -1}}
+
+# Resultados del Newton-Raphson propio (Tablas 10 y 11 del informe)
+referencia:
+  fuente: Informe de flujo de cargas, Sec. 6 (NR propio en Python)
+  E1: {u_pu: {B1: 1.0000, B2: 0.9997, B3: 0.9743, B4: 0.9476}}
+  E2:
+    u_pu: {B1: 1.0000, B2: 0.9997, B3: 0.9742, B4: 0.9428}
+    ramas:
+      L_MT: {p_kW: 62.52, q_kvar: 31.81, i_A: 3.07}
+      L_BT: {p_kW: 46.53, q_kvar: 22.45, i_A: 139.2}
+  E3: {u_pu: {B1: 1.0000, B2: 0.9997, B3: 0.9999, B4: 0.9693}}

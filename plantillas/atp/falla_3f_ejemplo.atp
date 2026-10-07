@@ -1,0 +1,28 @@
+BEGIN NEW DATA CASE
+C Plantilla de ejemplo power-studies-ai: falla trifasica en B2 (lado MT)
+C Proyecto {{PROYECTO}} - escenario {{ESCENARIO}}
+C Los marcadores con ancho escriben el valor en ese numero de columnas.
+C  DELTAT    TMAX
+  1.E-6     0.1
+     500       1       0       0       1       0       0       1       0       0
+C Red externa (Thevenin) y linea MT, por fase
+  SRCA  N1A               {{RED_RED_R_OHM|6}}{{RED_RED_L_MH|6}}
+  SRCB  N1B               {{RED_RED_R_OHM|6}}{{RED_RED_L_MH|6}}
+  SRCC  N1C               {{RED_RED_R_OHM|6}}{{RED_RED_L_MH|6}}
+  N1A   N2A               {{LINEA_L_MT_R_OHM|6}}{{LINEA_L_MT_L_MH|6}}
+  N1B   N2B               {{LINEA_L_MT_R_OHM|6}}{{LINEA_L_MT_L_MH|6}}
+  N1C   N2C               {{LINEA_L_MT_R_OHM|6}}{{LINEA_L_MT_L_MH|6}}
+BLANK BRANCH
+  N2A               0.05        1.                                             1
+  N2B               0.05        1.                                             1
+  N2C               0.05        1.                                             1
+BLANK SWITCH
+14SRCA    {{BARRA_B1_VPICO_FN|10}}       60.        0.                           -1.        1.
+14SRCB    {{BARRA_B1_VPICO_FN|10}}       60.     -120.                           -1.        1.
+14SRCC    {{BARRA_B1_VPICO_FN|10}}       60.      120.                           -1.        1.
+BLANK SOURCE
+  N2A   N2B   N2C
+BLANK OUTPUT
+BLANK PLOT
+BEGIN NEW DATA CASE
+BLANK

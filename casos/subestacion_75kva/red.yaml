@@ -1,0 +1,108 @@
+# Subestación 75 kVA — Taller Integrador de Ingeniería Eléctrica (UNAL).
+# Topología tomada del proyecto de PowerFactory "subestaciones 75 kva".
+#
+# IMPORTANTE: el .pfd original solo se puede leer dentro de PowerFactory.
+# Los parámetros marcados `origen: supuesto` son valores típicos (NTC 819,
+# NTC 2050 Cap. 9) calibrados para reproducir el unifilar exportado
+# ("Flujo de carga.pdf"). Reemplácelos con los datos reales corriendo
+# herramientas/powerfactory/pf_exportar_modelo.py dentro de PowerFactory.
+proyecto: Subestación 75 kVA
+descripcion: >
+  Sistema radial: red externa -> PCC 11,4 kV -> cable de MT -> barraje MT ->
+  transformador TR1 75 kVA 11,4/0,208 kV -> barra BT -> alimentador BT ->
+  tablero general de distribución con la carga agregada.
+autor: Juan Fernando Montoya
+frecuencia_Hz: 60
+
+barras:
+  - {id: PCC, nombre: PCC, un_kV: 11.4}
+  - {id: MT, nombre: Barraje MT, un_kV: 11.4}
+  - {id: BT, nombre: Barra BT, un_kV: 0.208}
+  - {id: TGD, nombre: Tablero general de distribución, un_kV: 0.208}
+
+redes_externas:
+  - id: RED
+    nombre: External Grid
+    barra: PCC
+    u_pu: 1.0
+    scc_max_MVA: 150
+    r_x_max: 0.1
+    origen: supuesto
+    nota: Pedir al operador de red la potencia de cortocircuito en el PCC.
+
+lineas:
+  - id: CABLE_MT
+    nombre: Cable alimentador MT
+    desde: PCC
+    hasta: MT
+    longitud_km: 0.1
+    r_ohm_km: 0.607
+    x_ohm_km: 0.16
+    c_nF_km: 200
+    in_kA: 0.148
+    material: al
+    temperatura_ref_C: 20
+    conductor: 1/0 AWG Al 15 kV
+    origen: supuesto
+    nota: In deducida de la cargabilidad (≈3,1 A / 2,1 %); calibre y longitud por confirmar.
+  - id: ALIM_BT
+    nombre: Alimentador BT
+    desde: BT
+    hasta: TGD
+    longitud_km: 0.035
+    r_ohm_km: 0.203
+    x_ohm_km: 0.135
+    in_kA: 0.26
+    material: cu
+    temperatura_ref_C: 75
+    conductor: 4/0 AWG Cu (90 °C)
+    origen: supuesto
+    nota: In ≈ 260 A deducida (171 A / 65,9 %); longitud calibrada para ΔU ≈ 1 %.
+
+transformadores:
+  - id: TR1
+    nombre: TR1 75 kVA
+    barra_at: MT
+    barra_bt: BT
+    sn_MVA: 0.075
+    un_at_kV: 11.4
+    un_bt_kV: 0.208
+    uk_pct: 3.5
+    pcu_kW: 1.1
+    grupo: Dyn5
+    tap_lado: at
+    tap_paso_pct: 2.5
+    tap_min: -2
+    tap_max: 2
+    origen: supuesto
+    nota: Dyn5 deducido del ángulo de -151,2°; uk y pérdidas típicos NTC 819.
+
+cargas:
+  - id: CARGA
+    nombre: General Load
+    barra: TGD
+    p_MW: 0.0535
+    q_Mvar: 0.0259
+    origen: deducido
+    nota: S ≈ 59,8 kVA deducida de 171 A a 0,97 p.u.; fp 0,9 supuesto.
+
+protecciones:
+  - {id: F8K, tipo: fusible, ubicacion: TR1, modelo: "8K", nota: Protección principal del TR1}
+  - {id: FINT, tipo: fusible, ubicacion: CABLE_MT, modelo: intermedio}
+  - {id: F8T, tipo: fusible, ubicacion: CABLE_MT, modelo: "8T"}
+  - {id: RECON, tipo: reconectador, ubicacion: PCC, modelo: Noja}
+  - {id: SPAJ, tipo: rele, ubicacion: PCC, modelo: SPAJ 142C, ajustes: {TC: "2000/5"}}
+
+escenarios:
+  - {id: base, descripcion: "Como en PowerFactory: resistencias a 20 °C", temperatura_C: 20}
+  - {id: operacion_75C, descripcion: "Resistencias a 75 °C (temperatura de operación)", temperatura_C: 75}
+  - {id: tap_eleva_bt, descripcion: "75 °C con tap -2,5 % en AT", temperatura_C: 75, taps: {TR1: -1}}
+
+referencia:
+  fuente: Unifilar exportado de PowerFactory ("Flujo de carga.pdf")
+  base:
+    u_pu: {PCC: 1.00, MT: 1.00, BT: 0.98, TGD: 0.97}
+    cargabilidad_pct: {TR1: 82.3, ALIM_BT: 65.9}
+  nota: >
+    El informe PDF (Tabla 4/5) reporta TGD 0,95 p.u., TR1 83,9 % y ALIM_BT 67,2 %,
+    distinto del unifilar exportado. Confirmar cuál corresponde al .pfd vigente.
