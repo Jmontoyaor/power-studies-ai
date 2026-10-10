@@ -190,6 +190,22 @@ def cmd_subestacion(a):
                 print(f"  unifilar DXF -> {unifilar_subestacion(t, a.dxf)}")
 
 
+def cmd_informe_latex(a):
+    """Informe LaTeX + PDF con memorias de cálculo, según los insumos del manifiesto."""
+    from .informe_latex import generar, planificar
+    import yaml
+    m = yaml.safe_load(Path(a.estudio).read_text(encoding="utf-8"))
+    plan = planificar(m, Path(a.estudio).parent)
+    print("  Contenido decidido:")
+    for r in plan.razones:
+        print("   -", r)
+    rutas = generar(a.estudio, a.salida, compilar=not a.sin_pdf)
+    for k, v in rutas.items():
+        print(f"  {k} -> {v}")
+    if not a.sin_pdf and "pdf" not in rutas:
+        print("  aviso: no hay compilador de LaTeX (instale tectonic o TeX Live); se dejó solo el .tex")
+
+
 def cmd_simular(a):
     from .adaptadores import obtener
     from .validacion import contra_referencia
@@ -332,6 +348,12 @@ def main(argv=None):
     q.add_argument("--comparar", action="store_true", help="compara las seis configuraciones")
     q.add_argument("--dxf", help="unifilar para AutoCAD (requiere ezdxf)")
     q.set_defaults(f=cmd_subestacion)
+
+    q = s.add_parser("informe-latex", help="informe en LaTeX y PDF con memorias de cálculo")
+    q.add_argument("estudio", help="manifiesto estudio.yaml (red, malla, baterias, subestacion, textos)")
+    q.add_argument("--salida", default="informe_latex", help="carpeta de salida")
+    q.add_argument("--sin-pdf", action="store_true", help="solo escribir el .tex")
+    q.set_defaults(f=cmd_informe_latex)
 
     q = s.add_parser("comparar"); q.add_argument("red")
     q.add_argument("--herramientas", default="pandapower,opendss"); q.add_argument("--escenario", default="todos")
