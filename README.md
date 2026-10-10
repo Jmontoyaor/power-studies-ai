@@ -46,7 +46,7 @@ física. Detalle en [`docs/herramientas.md`](docs/herramientas.md).
 |---|---|---|
 | pandapower | modelo, flujo y cortocircuito | ✅ referencia local |
 | OpenDSS | modelo y flujo | ✅ coincide con pandapower (Δu < 0,001 p.u.) |
-| **ATPDraw / ATP** | genera el **proyecto dibujado** (XML de ATPDraw ≥ 7.0) para flujo y fallas 3F, 1F, 2F, 2FT; lee el `.lis` | ✅ probado con ATPDraw 7.8 + tpbigm |
+| **ATPDraw / ATP** | genera el **proyecto dibujado** (XML de ATPDraw ≥ 7.0) para flujo y fallas 3F, 1F, 2F, 2FT; lee el `.lis`; catálogo de 257 componentes que aprende solo de los proyectos que se le agregan ([guía](docs/atpdraw.md)) | ✅ probado con ATPDraw 7.8 + tpbigm |
 | **AutoCAD** | `--dxf` en `subestacion` (unifilar en capas) y `malla` (planta a escala en metros) | ✅ DXF auditado; no requiere AutoCAD para generarlo |
 | PowerFactory | construye la red por su API Python | ⚠️ probado con API simulada, falta licencia real |
 | ETAP / PVsyst | tablas de importación / CSV de modo batch | 🧪 hay que ajustarlos a su versión |
@@ -103,6 +103,7 @@ la firma del estudio es siempre humana. La versión para OpenCode se genera con
 - Sin coordinación de protecciones, transitorios ni estabilidad todavía.
 
 Lo que sigue, con su caso de validación, está en la [hoja de ruta](docs/hoja_de_ruta.md).
+Resumen de lo que llevamos y lo que esperamos: [`docs/RESUMEN.md`](docs/RESUMEN.md).
 
 ## Estructura
 

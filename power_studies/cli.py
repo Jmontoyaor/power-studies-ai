@@ -206,6 +206,26 @@ def cmd_informe_latex(a):
         print("  aviso: no hay compilador de LaTeX (instale tectonic o TeX Live); se dejó solo el .tex")
 
 
+def cmd_atpdraw_catalogo(a):
+    """Catálogo de componentes de ATPDraw aprendido de proyectos XML."""
+    from . import atpdraw_catalogo as cat
+    if not a.construir:
+        cat.retroalimentar()
+    if a.construir:
+        anterior = cat.cargar() if cat.RUTA.exists() and not a.desde_cero else None
+        c = cat.construir(a.construir, cat.RUTA, anterior)
+        print(f"  catálogo: {len(c['componentes'])} componentes -> {cat.RUTA}")
+        return
+    c = cat.cargar()
+    if a.componente:
+        print(cat.describir(a.componente, c))
+        return
+    for nombre, e in c["componentes"].items():
+        fases = max((n["fases"] for n in e["nodos"]), default=1)
+        print(f"  {nombre:16s} {len(e['nodos']):2d} terminales  {len(e['datos']):3d} datos  {fases}F  "
+              f"({e['veces']} usos en {len(e['proyectos'])} proyectos)")
+
+
 def cmd_simular(a):
     from .adaptadores import obtener
     from .validacion import contra_referencia
@@ -354,6 +374,12 @@ def main(argv=None):
     q.add_argument("--salida", default="informe_latex", help="carpeta de salida")
     q.add_argument("--sin-pdf", action="store_true", help="solo escribir el .tex")
     q.set_defaults(f=cmd_informe_latex)
+
+    q = s.add_parser("atpdraw-catalogo", help="componentes de ATPDraw aprendidos de proyectos")
+    q.add_argument("componente", nargs="?", help="ver la ficha de un componente (p. ej. LCC)")
+    q.add_argument("--construir", help="carpeta con proyectos ATPDraw guardados como XML")
+    q.add_argument("--desde-cero", action="store_true", help="no fusionar con el catálogo actual")
+    q.set_defaults(f=cmd_atpdraw_catalogo)
 
     q = s.add_parser("comparar"); q.add_argument("red")
     q.add_argument("--herramientas", default="pandapower,opendss"); q.add_argument("--escenario", default="todos")
