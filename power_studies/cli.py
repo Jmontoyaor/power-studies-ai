@@ -80,6 +80,40 @@ def _fallas(ad, red, esc, fallas, res):
             res.fallas.update(ad.cortocircuito(red, esc, tipo).fallas)
 
 
+def cmd_malla(a):
+    """Diseño de malla de puesta a tierra IEEE 80-2013 desde un YAML de diseño."""
+    import yaml
+
+    from .puesta_tierra import Falla, Malla, Suelo, disenar
+    datos = yaml.safe_load(Path(a.diseno).read_text(encoding="utf-8"))
+    f = dict(datos["falla"])
+    if "desde_red" in f:  # 3I0 = corriente de la falla monofásica (paso 2), IEC 60909 máxima
+        from .adaptadores import obtener
+        ref = f.pop("desde_red")
+        red = _red(str(Path(a.diseno).parent / ref["red"]))
+        res = obtener("pandapower").cortocircuito(red, ref.get("escenario"), "1f")
+        f["tres_i0"] = res.fallas["1f"][ref["barra"]].ikss_kA * 1000
+        print(f"3I0 desde {ref['red']} (falla 1F en {ref['barra']}, IEC 60909): {f['tres_i0']:.0f} A")
+    peso = datos.get("peso_kg", 70)
+    r = disenar(Suelo(**datos["suelo"]), Malla(**datos["malla"]), Falla(**f), peso,
+                datos.get("material", "cu_duro"))
+    filas = [("Cs (ec. 27)", r.cs, ""), (f"E paso tolerable {peso} kg", r.e_paso_tol, "V"),
+             (f"E toque tolerable {peso} kg", r.e_toque_tol, "V"), ("Rg (ec. 57)", r.rg, "Ω"),
+             ("Df (ec. 84)", r.df, ""), ("IG", r.ig, "A"), ("GPR", r.gpr, "V"), ("n", r.n, ""),
+             ("Km (ec. 86)", r.km, ""), ("Ki (ec. 94)", r.ki, ""), ("Em, tensión de malla", r.em, "V"),
+             ("Ks (ec. 99)", r.ks, ""), ("Es, tensión de paso", r.es, "V"),
+             ("Sección mínima del conductor", r.seccion_min_mm2, "mm²")]
+    for nombre, valor, u in filas:
+        print(f"  {nombre:32s} {valor:12.4g} {u}")
+    print(f"  Toque: Em {r.em:.1f} V {'<=' if r.cumple_toque else '>'} {r.e_toque_tol:.1f} V -> "
+          f"{'CUMPLE' if r.cumple_toque else 'NO CUMPLE'}")
+    print(f"  Paso:  Es {r.es:.1f} V {'<=' if r.cumple_paso else '>'} {r.e_paso_tol:.1f} V -> "
+          f"{'CUMPLE' if r.cumple_paso else 'NO CUMPLE'}")
+    for n in r.notas:
+        print("  nota:", n)
+    sys.exit(0 if r.cumple else 2)
+
+
 def cmd_simular(a):
     from .adaptadores import obtener
     from .validacion import contra_referencia
@@ -208,6 +242,9 @@ def main(argv=None):
     q.add_argument("--cortocircuito", action="store_true"); q.add_argument("--salida", default="resultados")
     q.add_argument("--fallas", help="fallas asimétricas IEC 60909, p. ej. 1f,2f")
     q.set_defaults(f=cmd_simular)
+
+    q = s.add_parser("malla", help="malla de puesta a tierra IEEE 80-2013")
+    q.add_argument("diseno", help="YAML con suelo, malla y falla"); q.set_defaults(f=cmd_malla)
 
     q = s.add_parser("comparar"); q.add_argument("red")
     q.add_argument("--herramientas", default="pandapower,opendss"); q.add_argument("--escenario", default="todos")
