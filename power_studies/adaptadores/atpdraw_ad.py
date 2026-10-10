@@ -13,12 +13,17 @@ Reglas del formato que hay que respetar (verificadas con ATPDraw 7.8):
   * Un nodo a tierra lleva Ground="1".
   * ATP admite 6 caracteres por nodo y ATPDraw agrega la fase (A/B/C) en los
     nodos trifásicos: los nombres base deben tener a lo sumo 5 caracteres.
+  * SATTRAFO: Coupl = tipo*1000 + desfase en grados (tipo 1 = Y, 2 = D). La
+    tensión de devanado (kV) es de línea en D y de fase en Y.
 
 Modelo eléctrico (régimen permanente, equivalente al de flujo de cargas):
-  * Red externa: fuente trifásica ideal en su barra (slack).
-  * Línea: R + L serie por fase (RLC3); la capacitancia no se modela aún.
-  * Transformador: ideal Y-Y (TRAFO_I3) con la relación del tap + impedancia
-    de cortocircuito serie del lado de BT. Sin desfase (grupo Dyn no se dibuja).
+  * Red externa: fuente trifásica ideal en su barra (slack). En modo falla se
+    le agrega la impedancia de la red Zq = c·Un²/Scc y la fuente sube a c·Un
+    (IEC 60909, c = 1,1).
+  * Línea: R + L serie (RLC3); con capacitancia, PI trifásico (LINEPI3S).
+  * Transformador: SATTRAFO de dos devanados con el grupo y el desfase del
+    modelo, sin rama de magnetización; la impedancia de cortocircuito va en el
+    devanado de BT y el tap modifica la tensión del devanado de su lado.
   * Carga: impedancia constante en estrella a tierra (RLCY3), calculada a la
     tensión indicada en `u_carga_pu` (por defecto 1,0 p.u.).
 """
@@ -30,7 +35,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ..modelo import Red
+from ..modelo import Red, Transformador
 from .base import Adaptador
 from .plantillas_ad import variables
 
@@ -38,6 +43,8 @@ X0, Y0 = 2800, 2700        # origen del lienzo de ATPDraw
 PASO_X = 200               # distancia horizontal entre barras consecutivas
 PASO_Y = 120               # distancia vertical entre filas de ramas
 CAIDA_CARGA = 40           # la carga cuelga 40 unidades bajo su barra
+C_IEC = 1.1                # factor de tensión c máximo (IEC 60909)
+R_FALLA = 1e-4             # resistencia de la falla franca (ohm)
 
 
 def _f(x: float) -> str:
@@ -86,13 +93,13 @@ class _Lienzo:
 
 
 def _nodo(nombre: str, valor: str, dx: int, dy: int, fases: int = 1, tierra: bool = False,
-          deshabilitado: bool = False) -> dict[str, str]:
+          deshabilitado: bool = False, kind: int = 1) -> dict[str, str]:
     n = {"Name": nombre, "Value": valor}
     if valor:
         n["UserNamed"] = "true"
     if fases > 1:
         n["NumPhases"] = str(fases)
-    n.update(Kind="1", PosX=str(dx), PosY=str(dy), NamePosX="4", NamePosY="-4")
+    n.update(Kind=str(kind), PosX=str(dx), PosY=str(dy), NamePosX="4", NamePosY="-4")
     if tierra:
         n["Ground"] = "1"
     if deshabilitado:
@@ -105,6 +112,13 @@ def _rlc3(lz: _Lienzo, x: int, y: int, entrada: str, salida: str, r: float, l_mh
     for k in (1, 2, 3):
         datos += [(f"R_{k}", "Ohms", _f(r)), (f"L_{k}", "XOPT", _f(l_mh)), (f"C_{k}", "COPT", "0")]
     lz.comp("RLC3", x, y, [_nodo("IN1", entrada, -20, 0, 3), _nodo("OUT1", salida, 20, 0, 3)], datos)
+
+
+def _rlcy3(lz: _Lienzo, x: int, y: int, nodo: str, r: float, l_mh: float):
+    datos = []
+    for k in (1, 2, 3):
+        datos += [(f"R_{k}", "Ohms", _f(r)), (f"L_{k}", "XOPT", _f(l_mh)), (f"C_{k}", "COPT", "0")]
+    lz.comp("RLCY3", x, y, [_nodo("IN", nodo, -20, 0, 3), _nodo("OUT", "", 20, 0, tierra=True)], datos)
 
 
 def _acsource(lz: _Lienzo, x: int, y: int, nodo: str, u_ll_kv: float, angulo: float, f_hz: float):
@@ -120,15 +134,57 @@ def _acsource(lz: _Lienzo, x: int, y: int, nodo: str, u_ll_kv: float, angulo: fl
     lz.comp("ACSOURCE", x, y, [_nodo("AC", nodo, 20, 0, 3)], datos)
 
 
+def _devanados(grupo: str) -> tuple[bool, bool, int]:
+    """(AT en delta, BT en delta, desfase en grados) a partir de 'Dyn5', 'YNd11', 'Yy0'..."""
+    m = re.fullmatch(r"\s*([YDZ])N?\s*([ydz])n?\s*(\d{1,2})\s*", grupo)
+    if not m or "Z" in m.group(1) or "z" in m.group(2):
+        raise ValueError(f"ATPDraw: grupo de conexión no soportado: {grupo!r}")
+    return m.group(1) == "D", m.group(2) == "d", 30 * int(m.group(3)) % 360
+
+
+def _sattrafo(lz: _Lienzo, x: int, y: int, t: Transformador, at: str, bt: str, tap: int,
+              r_bt: float, l_bt_mh: float):
+    d_at, d_bt, desfase = _devanados(t.grupo)
+    factor_tap = 1 + tap * t.tap_paso_pct / 100
+    v_at = t.un_at_kV * (factor_tap if t.tap_lado == "at" else 1)
+    v_bt = t.un_bt_kV * (factor_tap if t.tap_lado == "bt" else 1)
+    v_at = v_at if d_at else v_at / math.sqrt(3)
+    v_bt = v_bt if d_bt else v_bt / math.sqrt(3)
+    # La impedancia del equivalente en estrella pasa al devanado: x3 si es delta.
+    k_bt = 3 if d_bt else 1
+    minimo = 1e-6
+    nodos = [_nodo("Primary", at, -20, 0, 3), _nodo("Secondary", bt, 20, 0, 3),
+             _nodo("Starpoint", "", -10, -20, 3, kind=2),
+             _nodo("Prim-N", "", -10, 20, kind=3, tierra=not d_at, deshabilitado=d_at),
+             _nodo("Sec-N", "", 10, 20, kind=3, tierra=not d_bt, deshabilitado=d_bt),
+             _nodo("Tertiary", "", 0, -20, 3, deshabilitado=True),
+             _nodo("Tert-N", "", 10, -20, kind=3, deshabilitado=True)]
+    datos = [("I0", "Amps", 0), ("F0", "Wb-t", 0), ("R0", "", 0), ("RM", "ohms", 0),
+             ("Vrp", "kV", _f(v_at)), ("Rp", "ohms", _f(minimo)), ("Lp", "XOPT", _f(minimo)),
+             ("CouplP", "", 2000 if d_at else 1000),
+             ("Vrs", "kV", _f(v_bt)), ("Rs", "ohms", _f(r_bt * k_bt)), ("Ls", "XOPT", _f(l_bt_mh * k_bt)),
+             ("CouplS", "", (2000 if d_bt else 1000) + desfase),
+             ("Vrt", "kV", 0), ("Rt", "ohms", 0), ("Lt", "XOPT", 0), ("CouplT", "", 1000),
+             ("3-wind", "", 0), ("RMS", "", 1)]
+    c = lz.comp("SATTRAFO", x, y, nodos, datos, extra={"NumPhases": "7"})
+    ET.SubElement(c.find("comp_content"), "nonlin", Kind="8")
+
+
 def generar_xml(red: Red, escenario: str | None = None,
-                u_carga_pu: dict[str, float] | None = None, tmax_s: float = 0.02) -> str:
-    """Devuelve el proyecto ATPDraw (XML) del escenario indicado."""
+                u_carga_pu: dict[str, float] | None = None, tmax_s: float = 0.02,
+                falla_3f: str | None = None) -> str:
+    """Devuelve el proyecto ATPDraw (XML) del escenario indicado.
+
+    `falla_3f`: id de una barra. Arma el caso de cortocircuito trifásico IEC 60909
+    (impedancia de la red, fuente a c·Un, sin cargas, falla franca en esa barra)."""
     esc = red.escenario(escenario)
-    var = {k: v for k, v in variables(red, esc.id).items()}
+    var = variables(red, esc.id)
     w = 2 * math.pi * red.frecuencia_Hz
     u_carga_pu = u_carga_pu or {}
     lz = _Lienzo()
     nodo = {b.id: lz.nombre_nodo(b.id) for b in red.barras}
+    if falla_3f is not None and falla_3f not in nodo:
+        raise KeyError(f"barra de falla '{falla_3f}' no existe")
 
     # Árbol radial desde la barra de la red externa: ubicación por profundidad y fila.
     raiz = red.redes_externas[0].barra
@@ -164,16 +220,28 @@ def generar_xml(red: Red, escenario: str | None = None,
 
     ubicar(raiz, X0, Y0)
 
-    # Red externa: fuente ideal pegada a su barra.
+    # Red externa: fuente ideal pegada a su barra; en falla, con su impedancia.
     for xr in red.redes_externas:
         bx, by = pos[xr.barra]
-        _acsource(lz, bx - 60, by, nodo[xr.barra], red.barra(xr.barra).un_kV * xr.u_pu,
-                  xr.angulo_deg, red.frecuencia_Hz)
-        lz.cable(bx - 40, by, bx, by)
+        un = red.barra(xr.barra).un_kV
+        if falla_3f is None:
+            _acsource(lz, bx - 60, by, nodo[xr.barra], un * xr.u_pu, xr.angulo_deg, red.frecuencia_Hz)
+            lz.cable(bx - 40, by, bx, by)
+        else:
+            interno = lz.nombre_nodo(f"{xr.id}F")
+            zq = C_IEC * un ** 2 / xr.scc_max_MVA
+            xq = zq / math.sqrt(1 + xr.r_x_max ** 2)
+            _acsource(lz, bx - 140, by, interno, un * C_IEC, xr.angulo_deg, red.frecuencia_Hz)
+            _rlc3(lz, bx - 80, by, interno, nodo[xr.barra], xq * xr.r_x_max, xq / w * 1000)
+            lz.cable(bx - 120, by, bx - 100, by)
+            lz.cable(bx - 60, by, bx, by)
+            lz.texto(bx - 100, by - 30, xr.id)
 
     cargas_por_barra: dict[str, list] = {}
-    for c in red.cargas:
-        cargas_por_barra.setdefault(c.barra, []).append(c)
+    if falla_3f is None:  # IEC 60909 desprecia las cargas
+        for c in red.cargas:
+            cargas_por_barra.setdefault(c.barra, []).append(c)
+    lineas = {l.id: l for l in red.lineas}
 
     for b, (bx, by) in pos.items():
         # Punto donde arrancan las ramas de las filas inferiores (debajo de la carga, si hay).
@@ -186,12 +254,14 @@ def generar_xml(red: Red, escenario: str | None = None,
             l_mh = un ** 2 * q / s2 / w * 1000 if s2 else 0.0
             yc = bajada[1] + CAIDA_CARGA
             lz.cable(bx, bajada[1], bx, yc)
-            datos = []
-            for k in (1, 2, 3):
-                datos += [(f"R_{k}", "Ohms", _f(r)), (f"L_{k}", "XOPT", _f(l_mh)), (f"C_{k}", "COPT", "0")]
-            lz.comp("RLCY3", bx + 20, yc, [_nodo("IN", nodo[b], -20, 0, 3),
-                                           _nodo("OUT", "", 20, 0, tierra=True)], datos)
+            _rlcy3(lz, bx + 20, yc, nodo[b], r, l_mh)
             lz.texto(bx + 44, yc - 6, c.id)
+            bajada = (bx, yc)
+        if b == falla_3f:
+            yc = bajada[1] + CAIDA_CARGA
+            lz.cable(bx, bajada[1], bx, yc)
+            _rlcy3(lz, bx + 20, yc, nodo[b], R_FALLA, 0.0)
+            lz.texto(bx + 44, yc - 6, "FALLA 3F")
             bajada = (bx, yc)
 
         for i, (rid, h, obj) in enumerate(hijos[b]):
@@ -201,27 +271,33 @@ def generar_xml(red: Red, escenario: str | None = None,
             if i > 0:
                 lz.cable(*bajada, ox, oy)
                 bajada = (ox, oy)
-            if rid in {l.id for l in red.lineas}:
+            if rid in lineas:
+                l = lineas[rid]
                 lz.cable(ox, oy, ox + 60, oy)
-                _rlc3(lz, ox + 80, oy, nodo[b], nodo[h],
-                      float(var[f"LINEA_{rid}_R_OHM"]), float(var[f"LINEA_{rid}_L_MH"]))
+                if l.c_nF_km > 0:
+                    r_m = l.r_a(esc.temperatura_C) / 1000 / l.paralelos
+                    l_m = l.x_ohm_km / w / l.paralelos              # H/km = mH/m
+                    c_m = l.c_nF_km * 1e-6 * l.paralelos            # nF/km -> µF/m
+                    r0 = (l.r0_ohm_km / 1000 / l.paralelos) if l.r0_ohm_km is not None else r_m
+                    l0 = (l.x0_ohm_km / w / l.paralelos) if l.x0_ohm_km is not None else l_m
+                    lz.comp("LINEPI3S", ox + 80, oy,
+                            [_nodo("In", nodo[b], -20, 0, 3), _nodo("Out", nodo[h], 20, 0, 3)],
+                            [("R0", "Ohm/m", _f(r0)), ("L0", "XOPT/m", _f(l0)), ("C0", "COPT/m", _f(c_m)),
+                             ("R+", "Ohm/m", _f(r_m)), ("L+", "XOPT/m", _f(l_m)), ("C+", "COPT/m", _f(c_m)),
+                             ("Length", "m", _f(l.longitud_km * 1000))],
+                            extra={"NumPhases": "3"})
+                else:
+                    _rlc3(lz, ox + 80, oy, nodo[b], nodo[h],
+                          float(var[f"LINEA_{rid}_R_OHM"]), float(var[f"LINEA_{rid}_L_MH"]))
                 lz.cable(ox + 100, oy, hx, hy)
             else:
                 t = obj
-                interno = lz.nombre_nodo(f"{t.id}S")
-                at, bt = (nodo[b], nodo[h]) if b == t.barra_at else (nodo[h], nodo[b])
                 if b != t.barra_at:
                     raise ValueError(f"ATPDraw: {t.id} debe alimentarse por su lado de AT")
-                lz.cable(ox, oy, ox + 40, oy)
-                lz.comp("TRAFO_I3", ox + 60, oy,
-                        [_nodo("P", at, -20, 0, 3), _nodo("PN", "", -10, 20, tierra=True),
-                         _nodo("S", interno, 20, 0, 3), _nodo("SN", "", 10, 20, tierra=True)],
-                        [("n", "", _f(float(var[f"TRAFO_{t.id}_RELACION"])))],
-                        extra={"NumPhases": "4"})
-                lz.cable(ox + 80, oy, ox + 100, oy)
-                _rlc3(lz, ox + 120, oy, interno, bt,
-                      float(var[f"TRAFO_{t.id}_R_BT_OHM"]), float(var[f"TRAFO_{t.id}_L_BT_MH"]))
-                lz.cable(ox + 140, oy, hx, hy)
+                lz.cable(ox, oy, ox + 60, oy)
+                _sattrafo(lz, ox + 80, oy, t, nodo[b], nodo[h], esc.taps.get(t.id, t.tap_pos),
+                          float(var[f"TRAFO_{t.id}_R_BT_OHM"]), float(var[f"TRAFO_{t.id}_L_BT_MH"]))
+                lz.cable(ox + 100, oy, hx, hy)
             lz.texto(ox + 60, oy - 30, rid)
 
     for b, (bx, by) in pos.items():
@@ -235,11 +311,14 @@ def generar_xml(red: Red, escenario: str | None = None,
             ET.SubElement(pr, "monitor", Phase=str(fase))
         lz.texto(bx - 30, by - 30, nodo[b])
     ybajo = max(y for _, y in pos.values()) + 2 * PASO_Y
-    lz.texto(X0 - 60, ybajo, f"{red.proyecto} - escenario {esc.id} (generado por power-studies)")
+    titulo = f"{red.proyecto} - escenario {esc.id}"
+    if falla_3f:
+        titulo += f" - falla trifásica en {falla_3f} (IEC 60909, c = {C_IEC})"
+    lz.texto(X0 - 60, ybajo, titulo + " (generado por power-studies)")
 
     proyecto = ET.Element("project", Application="ATPDraw", Version="7", VersionXML="1")
     cab = ET.SubElement(proyecto, "header", Timestep="1E-5", Tmax=_f(tmax_s), XOPT="0", COPT="0",
-                        EPSILN="0", SysFreq=_f(red.frecuencia_Hz), TopLeftX=str(X0 - 100),
+                        EPSILN="0", SysFreq=_f(red.frecuencia_Hz), TopLeftX=str(X0 - 180),
                         TopLeftY=str(Y0 - 60))
     ET.SubElement(cab, "header_output", IOUT="500", IPLOT="1", ICAT="1", MEMSAVE="0",
                   AutoError="false", AutoCode="0", IDOUBLE="1", KSSOUT="1", MAXOUT="1")
@@ -254,7 +333,17 @@ def generar_xml(red: Red, escenario: str | None = None,
 
 _NUM = r"(-?\d*\.?\d+(?:E[-+]?\d+)?)"
 _FILA_NODO = re.compile(rf"^\s*([A-Z0-9]{{2,6}})\s+{_NUM}\s+{_NUM}")
+_FILA_RAMA = re.compile(rf"^\s*([A-Z0-9]{{2,6}})\s+{_NUM}\s+{_NUM}\s+{_NUM}\s+{_NUM}")
 _FILA_IMAG = re.compile(rf"^\s+{_NUM}\s+{_NUM}")
+
+
+def _tabla_permanente(ruta: str | Path) -> list[str]:
+    lineas = Path(ruta).read_text(encoding="latin-1").splitlines()
+    try:
+        ini = next(i for i, l in enumerate(lineas) if "Sinusoidal steady-state phasor solution" in l)
+    except StopIteration:
+        raise ValueError(f"{ruta}: sin solución de régimen permanente (¿ATP falló?)") from None
+    return lineas[ini:]
 
 
 def leer_lis(ruta: str | Path, red: Red) -> dict[str, tuple[float, float]]:
@@ -262,15 +351,11 @@ def leer_lis(ruta: str | Path, red: Red) -> dict[str, tuple[float, float]]:
 
     Lee la tabla "Sinusoidal steady-state phasor solution" del .lis (requiere
     KSSOUT=1, que el XML generado ya pide)."""
-    lineas = Path(ruta).read_text(encoding="latin-1").splitlines()
-    try:
-        ini = next(i for i, l in enumerate(lineas) if "Sinusoidal steady-state phasor solution" in l)
-    except StopIteration:
-        raise ValueError(f"{ruta}: sin solución de régimen permanente (¿ATP falló?)") from None
+    lineas = _tabla_permanente(ruta)
     lz = _Lienzo()
     nodo = {lz.nombre_nodo(b.id): b for b in red.barras}
     out: dict[str, tuple[float, float]] = {}
-    for i in range(ini, len(lineas) - 1):
+    for i in range(len(lineas) - 1):
         m = _FILA_NODO.match(lineas[i])
         if not m or not m.group(1).endswith("A") or m.group(1)[:-1] not in nodo:
             continue
@@ -281,16 +366,39 @@ def leer_lis(ruta: str | Path, red: Red) -> dict[str, tuple[float, float]]:
     return out
 
 
+def leer_falla(ruta: str | Path, red: Red, barra: str) -> float:
+    """Corriente de cortocircuito (kA eficaces, fase A) del caso `falla_3f=barra`.
+
+    Es la corriente de la rama de falla: la que va de la fase A de la barra a TERRA."""
+    lineas = _tabla_permanente(ruta)
+    nombres = {b.id: n for b, n in zip(red.barras, _nombres(red))}
+    objetivo = nombres[barra] + "A"
+    for i in range(len(lineas) - 3):
+        m = _FILA_RAMA.match(lineas[i])
+        if m and m.group(1) == objetivo:
+            for j in range(i + 2, min(i + 5, len(lineas))):
+                if lineas[j].strip().startswith("TERRA"):
+                    return float(m.group(5)) / math.sqrt(2) / 1000
+    raise ValueError(f"{ruta}: no se encontró la rama de falla de {barra}")
+
+
+def _nombres(red: Red) -> list[str]:
+    lz = _Lienzo()
+    return [lz.nombre_nodo(b.id) for b in red.barras]
+
+
 class ATPDrawAdaptador(Adaptador):
     nombre = "atpdraw"
     capacidades = ("exportar", "grafico")
 
     def exportar(self, red: Red, carpeta: Path, escenario: str | None = None,
-                 u_carga_pu: dict[str, float] | None = None) -> list[Path]:
+                 u_carga_pu: dict[str, float] | None = None,
+                 falla_3f: str | None = None) -> list[Path]:
         carpeta.mkdir(parents=True, exist_ok=True)
         esc = red.escenario(escenario)
         base = unicodedata.normalize("NFKD", red.proyecto).encode("ascii", "ignore").decode()
         base = re.sub(r"[^A-Za-z0-9_]+", "_", base).strip("_").lower()
-        ruta = carpeta / f"{base}_{esc.id}.xml"
-        ruta.write_text(generar_xml(red, esc.id, u_carga_pu), encoding="utf-8")
+        sufijo = f"_falla_{falla_3f}" if falla_3f else ""
+        ruta = carpeta / f"{base}_{esc.id}{sufijo}.xml"
+        ruta.write_text(generar_xml(red, esc.id, u_carga_pu, falla_3f=falla_3f), encoding="utf-8")
         return [ruta]

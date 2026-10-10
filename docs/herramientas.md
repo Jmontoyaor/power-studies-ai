@@ -32,15 +32,36 @@ Reglas del formato (verificadas con ATPDraw 7.8): la conectividad es por
 coordenadas (múltiplos de 10) o cables `<conn>`; los nombres de nodo se conservan
 solo con `UserNamed="true"`; tierra = `Ground="1"`; nombre base ≤ 5 caracteres.
 
-Modelo: fuente ideal en la barra slack, líneas R+L serie, transformador ideal
-Y-Y + impedancia de cortocircuito en BT, cargas como impedancia constante.
-Pendiente: capacitancia de líneas, desfase de grupos Dyn y equivalente de
-Thevenin para cortocircuito.
+Modelo: fuente ideal en la barra slack; líneas R+L serie o PI trifásico si
+tienen capacitancia; transformador SATTRAFO con su grupo y desfase (Dyn5, YNd11,
+Yy0...; `Coupl = tipo·1000 + desfase`, tipo 1 = Y y 2 = D); cargas como
+impedancia constante.
 
-Validación (`tests/test_atpdraw.py`): con las cargas calculadas a la tensión de
-operación, ATP reproduce el Newton-Raphson del caso de 4 barras (Δu = 0,0000 p.u.).
-Con cargas a tensión nominal (impedancia constante) B4 queda +0,005 p.u. sobre el
-NR, que usa cargas P-Q: es diferencia de modelo de carga, no de red.
+Cortocircuito trifásico: `exportar(..., falla_3f="BARRA")` agrega la impedancia
+de la red Zq = c·Un²/Scc, sube la fuente a c·Un (c = 1,1), quita las cargas y pone
+una falla franca en la barra; `leer_falla(ruta.lis, red, barra)` devuelve Ik'' en kA.
+
+Validación (`tests/test_atpdraw.py`, con salidas reales de ATP en `tests/datos/`):
+
+| Caso | Resultado |
+|---|---|
+| 4 barras, flujo E1 | igual al Newton-Raphson del informe (Δu ≤ 0,0001 p.u.) con cargas calculadas a la tensión de operación |
+| 75 kVA, flujo base | igual a pandapower en magnitud y ángulo (BT a −151,04°: el Dyn5 queda bien) |
+| 75 kVA, falla 3F en PCC y MT | igual a pandapower IEC 60909 (Δ < 0,1 %) |
+| 75 kVA, falla 3F en BT y TGD | ATP +2,3 % y +1,7 % sobre IEC 60909 |
+
+Las diferencias que quedan son de método, no de red:
+
+- **Carga:** ATP usa impedancia constante; el flujo de cargas usa potencia
+  constante. Con la impedancia a tensión nominal, la BT queda unas milésimas de
+  p.u. más alta.
+- **Cortocircuito en BT:** IEC 60909 multiplica la impedancia de los
+  transformadores de red por K_T = 0,95·c/(1+0,6·x_T) (≈ 1,025 para el TR1); ATP
+  calcula la corriente física sin ese factor. La prueba lo comprueba con el
+  cálculo a mano. No se agrega K_T a ATP para que "cuadre".
+
+Pendiente: grupos zigzag, transformadores de tres devanados, redes malladas en
+el dibujo, fallas asimétricas (paso 2 de `docs/hoja_de_ruta.md`).
 
 ### ATP (plantilla)
 

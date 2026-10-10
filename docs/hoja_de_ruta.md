@@ -20,14 +20,14 @@ principio de siempre: **un modelo neutro (`red.yaml`) y un adaptador por herrami
 |---|---|
 | Flujo de cargas | pandapower y OpenDSS, validados contra `ejemplo_4_barras` |
 | Cortocircuito trifásico IEC 60909 | pandapower |
-| ATPDraw dibujado desde `red.yaml` | adaptador `atpdraw`, validado contra `ejemplo_4_barras` |
+| ATPDraw dibujado desde `red.yaml` | adaptador `atpdraw`: flujo (con Dyn5 y capacitancia) y falla trifásica, validado contra `ejemplo_4_barras` y `subestacion_75kva` |
 | Informe Word, verificación NTC/RETIE | `power-studies informe`, `power-studies verificar` |
 
 ## Pasos
 
 | # | Paso | Qué se agrega | Herramienta | Validación | Estado |
 |---|---|---|---|---|---|
-| 1 | Cerrar ATPDraw | desfase de grupos Dyn, capacitancia de líneas, equivalente de Thevenin para cortocircuito | ATPDraw/ATP | `subestacion_75kva` contra pandapower | ⬜ |
+| 1 | Cerrar ATPDraw | desfase de grupos Dyn, capacitancia de líneas, equivalente de Thevenin para cortocircuito | ATPDraw/ATP | `subestacion_75kva` contra pandapower | ✅ |
 | 2 | Cortocircuitos asimétricos | fallas 1F, 2F y 2FT; datos de secuencia cero en líneas y transformadores | pandapower, ATP | ejemplo de libro (Grainger/Glover) | ⬜ |
 | 3 | Protecciones | relés con curvas IEC/IEEE, fusibles, TC/TP; tiempos de disparo y coordinación | pandapower + cálculo propio, ATP | `informe_coordinacion.pdf` del 75 kVA | ⬜ |
 | 4 | Generadores en el modelo | barras PV, límites de P/Q, costos | todas | — (habilita 5 y 8) | ⬜ |
