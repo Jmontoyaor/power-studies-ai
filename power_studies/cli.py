@@ -114,6 +114,76 @@ def cmd_malla(a):
     sys.exit(0 if r.cumple else 2)
 
 
+def cmd_baterias(a):
+    """Banco de baterías IEEE 485-2020 desde un YAML de diseño."""
+    import yaml
+
+    from .baterias import (Periodo, celda_comercial, dimensionar, numero_celdas,
+                           tension_minima_celda)
+    d = yaml.safe_load(Path(a.diseno).read_text(encoding="utf-8"))
+    s = d["sistema"]
+    n, v_ig = numero_celdas(s["v_max"], s["v_igualacion_celda"])
+    print(f"  Celdas (6.2.2): {n}  -> igualación {v_ig:.1f} V"
+          + ("  (supera v_max: verifique la carga)" if v_ig > s["v_max"] else ""))
+    print(f"  Tensión mínima por celda: {tension_minima_celda(s['v_min'], n):.3f} V "
+          "(los factores de la celda deben ser a esta tensión)")
+    cel = d["celda"]
+    ale = d.get("aleatoria")
+    r = dimensionar([Periodo(**p) for p in d["ciclo"]], {float(k): v for k, v in cel["factores"].items()},
+                    cel.get("tipo_factor", "kt"), Periodo(**ale) if ale else None,
+                    d.get("temperatura_c", 25.0), d.get("margen", 1.10), d.get("envejecimiento", 1.25))
+    for sec, fs in r.secciones.items():
+        print(f"  Sección {sec}: {fs:9.1f} {r.unidad}" + ("  <- máxima" if sec == r.seccion_maxima else ""))
+    print(f"  Aleatoria: {r.tamano_aleatorio:.1f}   Sin corregir: {r.sin_corregir:.1f} {r.unidad}")
+    print(f"  x temperatura {r.factor_temperatura} x margen {r.margen} x envejecimiento {r.envejecimiento}"
+          f" = {r.corregido:.1f} {r.unidad}")
+    elegida = celda_comercial(r.corregido, cel["comerciales"]) if cel.get("comerciales") else None
+    if cel.get("comerciales"):
+        print(f"  Celda comercial: {elegida if elegida else 'ninguna del catálogo alcanza'}")
+    for nota in r.notas:
+        print("  nota:", nota)
+    if cg := d.get("cargador"):
+        from .baterias import ah_extraidos, cargador
+        if cg.get("ah", "extraidos") == "nominal":   # IEEE 946, 7.3.3 (subestaciones remotas)
+            if elegida is None:
+                raise SystemExit("cargador.ah = nominal requiere 'comerciales' en la celda")
+            c_ah, origen = elegida, "capacidad nominal de la celda (946, 7.3.3)"
+        else:
+            c_ah = ah_extraidos([Periodo(**p) for p in d["ciclo"]], Periodo(**ale) if ale else None)
+            origen = "Ah extraídos por el ciclo (946, 7.3.1)"
+        rc = cargador(c_ah, cg["tiempo_recarga_h"], cg["carga_continua_a"], cg.get("tipo_bateria", "VLA"),
+                      cg.get("factores_k"), cg.get("carga_no_continua_a", 0.0), cg.get("comerciales"))
+        print(f"  Cargador IEEE 946: C = {c_ah:.1f} Ah ({origen}), e = {rc.e}, K = {rc.k:.3f}")
+        print(f"    Ic = {rc.ic:.1f} A   I2 = {rc.i2:.1f} A   I3 = {rc.i3:.1f} A"
+              + (f"   -> cargador de {rc.comercial} A" if rc.comercial else ""))
+
+
+def cmd_subestacion(a):
+    """Unifilar y confiabilidad de una configuración de barras desde un YAML."""
+    import yaml
+
+    from .subestacion import (CONFIGURACIONES, Bahia, Subestacion, armar, dibujar,
+                              resumen_confiabilidad)
+    d = yaml.safe_load(Path(a.diseno).read_text(encoding="utf-8"))
+    bahias = [Bahia(**b) for b in d["bahias"]]
+    confs = list(CONFIGURACIONES) if a.comparar else [d["configuracion"]]
+    print(f"  {'Configuración':42s}{'52':>4}{'89':>5}{'pierde por falla en barra':>27}{'pierde por mant. de un 52':>27}")
+    for conf in confs:
+        sub = Subestacion(d["nombre"], d["tension_kV"], conf, bahias)
+        try:
+            t = armar(sub)
+        except ValueError as e:
+            print(f"  {CONFIGURACIONES[conf]:42s} no aplica: {e}")
+            continue
+        r = resumen_confiabilidad(t)
+        n = r["circuitos"]
+        print(f"  {r['configuracion']:42s}{r['interruptores']:4}{r['seccionadores']:5}"
+              f"{r['max_perdidos_falla_barra']:>21} de {n}{r['max_perdidos_mantenimiento_52']:>21} de {n}")
+        if conf == d["configuracion"] or not a.comparar:
+            for ruta in dibujar(t, a.salida):
+                print(f"  unifilar -> {ruta}")
+
+
 def cmd_simular(a):
     from .adaptadores import obtener
     from .validacion import contra_referencia
@@ -245,6 +315,15 @@ def main(argv=None):
 
     q = s.add_parser("malla", help="malla de puesta a tierra IEEE 80-2013")
     q.add_argument("diseno", help="YAML con suelo, malla y falla"); q.set_defaults(f=cmd_malla)
+
+    q = s.add_parser("baterias", help="banco de baterías IEEE 485-2020")
+    q.add_argument("diseno", help="YAML con sistema, ciclo y celda"); q.set_defaults(f=cmd_baterias)
+
+    q = s.add_parser("subestacion", help="unifilar y confiabilidad de la configuración de barras")
+    q.add_argument("diseno", help="YAML con nombre, tension_kV, configuracion y bahias")
+    q.add_argument("--salida", default="unifilar_subestacion.png", help="PNG, SVG o PDF (varias, separadas por coma)")
+    q.add_argument("--comparar", action="store_true", help="compara las seis configuraciones")
+    q.set_defaults(f=cmd_subestacion)
 
     q = s.add_parser("comparar"); q.add_argument("red")
     q.add_argument("--herramientas", default="pandapower,opendss"); q.add_argument("--escenario", default="todos")

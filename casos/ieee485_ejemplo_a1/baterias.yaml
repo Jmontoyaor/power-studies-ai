@@ -1,0 +1,42 @@
+# Ejemplo de la Figura A.1 de IEEE Std 485-2020 (Anexo A): banco de 60 celdas,
+# ventana de 105 V a 140 V, celda hipotética XYZ de ABC Co. Resultado de la norma:
+# 650,8 Ah sin corregir, 1010,4 Ah corregido -> celda comercial de 1040 Ah (XYZ-27).
+# Sirve de plantilla: reemplace el ciclo de trabajo de su subestación y los datos de
+# la celda (factores Kt del catálogo del fabricante a la tensión mínima por celda).
+sistema:
+  v_max: 140                # V, tensión máxima admisible de los equipos
+  v_min: 105                # V, tensión mínima de batería (incluye caída en cables)
+  v_igualacion_celda: 2.33  # V/celda, recomendada por el fabricante
+ciclo:                      # periodos en orden: amperios y duración en minutos
+  - {amperios: 320, minutos: 1}
+  - {amperios: 100, minutos: 29}
+  - {amperios: 280, minutos: 30}
+  - {amperios: 200, minutos: 60}
+  - {amperios: 40, minutos: 59}
+  - {amperios: 120, minutos: 1}
+aleatoria: {amperios: 100, minutos: 1}   # carga aleatoria (6.4.4); quitar si no hay
+celda:
+  tipo_factor: kt           # kt -> resultado en Ah; rt -> en placas positivas
+  factores:                 # t (min) -> Kt a 1,75 V/celda; dé los tiempos exactos del ciclo
+    1: 0.77
+    30: 1.44
+    59: 2.00
+    60: 2.00
+    90: 2.46
+    119: 2.91
+    120: 2.91
+    150: 3.33
+    179: 3.72
+    180: 3.72
+  comerciales: [800, 920, 1040, 1160]   # capacidades disponibles en el catálogo (Ah)
+temperatura_c: 18.3         # temperatura mínima esperada del electrolito
+margen: 1.15                # 6.3.3: 10 % a 15 %
+envejecimiento: 1.25        # 6.3.4
+cargador:                   # IEEE 946-2020, 7.3 (opcional; valores ilustrativos, no son del ejemplo de IEEE 485)
+  ah: extraidos             # extraidos (7.3.1) o nominal (7.3.3, subestaciones remotas)
+  tiempo_recarga_h: 12      # 6 h a 24 h
+  carga_continua_a: 40      # I_L: carga permanente durante la recarga (L1 del ciclo)
+  carga_no_continua_a: 0    # I_LN: mayor combinación de cargas no continuas simultáneas
+  tipo_bateria: VLA         # VLA, VRLA, NiCd_ventilada, NiCd_recombinante (Tabla 1)
+  factores_k: [1.10]        # p. ej. crecimiento futuro; altitud según fabricante
+  comerciales: [50, 75, 100]

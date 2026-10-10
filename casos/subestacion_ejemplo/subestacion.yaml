@@ -1,0 +1,13 @@
+# Subestación de ejemplo para el unifilar: 2 líneas y 2 transformadores.
+# Plantilla: cambie el nombre, la tensión, la configuración y las bahías.
+# Configuraciones: SBSB (barra sencilla), MTB (principal + transferencia),
+# DBSB (doble barra, un interruptor), BAH (interruptor y medio; número par de
+# circuitos), DBDB (doble barra, doble interruptor), RB (anillo).
+nombre: Subestación de ejemplo
+tension_kV: 115
+configuracion: BAH
+bahias:
+  - {id: L1, tipo: linea, nombre: Línea 1}
+  - {id: L2, tipo: linea, nombre: Línea 2}
+  - {id: T1, tipo: transformador, nombre: Transformador 1}
+  - {id: T2, tipo: transformador, nombre: Transformador 2}
