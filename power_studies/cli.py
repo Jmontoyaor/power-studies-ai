@@ -158,6 +158,32 @@ def cmd_baterias(a):
               + (f"   -> cargador de {rc.comercial} A" if rc.comercial else ""))
 
 
+def cmd_subestacion(a):
+    """Unifilar y confiabilidad de una configuración de barras desde un YAML."""
+    import yaml
+
+    from .subestacion import (CONFIGURACIONES, Bahia, Subestacion, armar, dibujar,
+                              resumen_confiabilidad)
+    d = yaml.safe_load(Path(a.diseno).read_text(encoding="utf-8"))
+    bahias = [Bahia(**b) for b in d["bahias"]]
+    confs = list(CONFIGURACIONES) if a.comparar else [d["configuracion"]]
+    print(f"  {'Configuración':42s}{'52':>4}{'89':>5}{'pierde por falla en barra':>27}{'pierde por mant. de un 52':>27}")
+    for conf in confs:
+        sub = Subestacion(d["nombre"], d["tension_kV"], conf, bahias)
+        try:
+            t = armar(sub)
+        except ValueError as e:
+            print(f"  {CONFIGURACIONES[conf]:42s} no aplica: {e}")
+            continue
+        r = resumen_confiabilidad(t)
+        n = r["circuitos"]
+        print(f"  {r['configuracion']:42s}{r['interruptores']:4}{r['seccionadores']:5}"
+              f"{r['max_perdidos_falla_barra']:>21} de {n}{r['max_perdidos_mantenimiento_52']:>21} de {n}")
+        if conf == d["configuracion"] or not a.comparar:
+            for ruta in dibujar(t, a.salida):
+                print(f"  unifilar -> {ruta}")
+
+
 def cmd_simular(a):
     from .adaptadores import obtener
     from .validacion import contra_referencia
@@ -292,6 +318,12 @@ def main(argv=None):
 
     q = s.add_parser("baterias", help="banco de baterías IEEE 485-2020")
     q.add_argument("diseno", help="YAML con sistema, ciclo y celda"); q.set_defaults(f=cmd_baterias)
+
+    q = s.add_parser("subestacion", help="unifilar y confiabilidad de la configuración de barras")
+    q.add_argument("diseno", help="YAML con nombre, tension_kV, configuracion y bahias")
+    q.add_argument("--salida", default="unifilar_subestacion.png", help="PNG, SVG o PDF (varias, separadas por coma)")
+    q.add_argument("--comparar", action="store_true", help="compara las seis configuraciones")
+    q.set_defaults(f=cmd_subestacion)
 
     q = s.add_parser("comparar"); q.add_argument("red")
     q.add_argument("--herramientas", default="pandapower,opendss"); q.add_argument("--escenario", default="todos")
