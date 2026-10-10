@@ -70,6 +70,16 @@ power-studies informe modelo/red.yaml --escenario todos --cruce opendss --cortoc
 Código de salida 2 = discrepancia con la referencia o entre herramientas:
 detenerse y reportar, nunca "ajustar" números para que cuadren.
 
+## Retroalimentación de herramientas
+
+- **ATPDraw**: todo proyecto de ATPDraw que se use o revise en un estudio se guarda también
+  como XML (*Save As → XML text format*) en `atpdraw/proyectos_xml/`. El catálogo de
+  componentes aprende de él solo la próxima vez que se use `power-studies` con ATPDraw.
+  Antes de agregar un componente al adaptador, consulte `power-studies atpdraw-catalogo NOMBRE`
+  en vez de investigar el formato. Guía: `docs/atpdraw.md`.
+- **Normas**: las erratas o detalles encontrados al validar contra un ejemplo de norma se
+  anotan en la prueba correspondiente y en `docs/RESUMEN.md`.
+
 ## Desarrollo del marco
 
 - `python -m pytest` debe pasar antes de cada commit.
