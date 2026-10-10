@@ -1,0 +1,22 @@
+# Malla del estudio de ejemplo: geometría del ejemplo B.2 de IEEE 80 con 3I0 tomado
+# de la falla 1F en MT del modelo de red (subestacion_75kva).
+peso_kg: 70                 # 50 o 70 kg (ec. 29-33)
+material: cu_duro           # clave de la Tabla 2 (ver power_studies/puesta_tierra.py: KF)
+suelo:
+  rho: 400                  # Ω·m, del modelo del terreno (sondeos de resistividad)
+  rho_s: 2500               # Ω·m, gravilla húmeda
+  h_s: 0.102                # m
+malla:
+  lx: 70                    # m
+  ly: 70                    # m
+  nx: 11                    # conductores paralelos al eje x
+  ny: 11                    # conductores paralelos al eje y
+  h: 0.5                    # m, profundidad
+  d: 0.01                   # m, diámetro del conductor
+  n_varillas: 20
+  l_varilla: 7.5            # m
+  varillas_en_perimetro: true
+falla:
+  desde_red: {red: ../subestacion_75kva/red.yaml, barra: MT, escenario: base}
+  sf: 0.6                   # factor de división de corriente
+  tf: 0.5                   # s

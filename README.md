@@ -67,6 +67,19 @@ power-studies informe   casos/subestacion_75kva/red.yaml --escenario todos --cru
 power-studies exportar  casos/subestacion_75kva/red.yaml --herramienta powerfactory --salida pf/
 ```
 
+## Informe en LaTeX y PDF
+
+```bash
+power-studies informe-latex casos/informe_ejemplo/estudio.yaml --salida informe/
+```
+
+El manifiesto `estudio.yaml` lista los insumos (red, malla, baterías, subestación,
+textos del redactor). El informe incluye solo las secciones que esos insumos
+permiten, con las memorias de cálculo (ecuaciones numeradas como en las normas y
+con los valores reemplazados), y explica en «Alcance» por qué incluyó cada una.
+Para el PDF se necesita un compilador: [Tectonic](https://tectonic-typesetting.github.io)
+(un solo ejecutable) o TeX Live.
+
 ## Con agentes (Claude Code u OpenCode)
 
 ```text

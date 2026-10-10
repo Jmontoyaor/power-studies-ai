@@ -1,0 +1,11 @@
+# Estudio completo de ejemplo: el informe LaTeX decide qué secciones incluir según
+# los insumos que haya. Quite o agregue claves y vuelva a generar.
+titulo: Estudio eléctrico de la subestación de 75 kVA
+autor: Juan Fernando Montoya
+red: ../subestacion_75kva/red.yaml
+escenarios: [base]
+cortocircuito: true
+fallas: [1f, 2f]
+malla: malla.yaml
+baterias: ../ieee485_ejemplo_a1/baterias.yaml
+subestacion: ../subestacion_ejemplo/subestacion.yaml
