@@ -43,18 +43,24 @@ class PandapowerAdaptador(Adaptador):
             idx[b.id] = pp.create_bus(net, vn_kv=b.un_kV, name=b.id)
 
         for x in red.redes_externas:
+            seq0 = {} if x.x0_x1 is None or x.r0_x0 is None else {
+                "x0x_max": x.x0_x1, "r0x0_max": x.r0_x0, "x0x_min": x.x0_x1, "r0x0_min": x.r0_x0}
             pp.create_ext_grid(
                 net, idx[x.barra], vm_pu=x.u_pu, va_degree=x.angulo_deg, name=x.id,
                 s_sc_max_mva=x.scc_max_MVA, rx_max=x.r_x_max,
                 s_sc_min_mva=x.scc_min_MVA or x.scc_max_MVA * 0.8,
-                rx_min=x.r_x_min if x.r_x_min is not None else x.r_x_max)
+                rx_min=x.r_x_min if x.r_x_min is not None else x.r_x_max, **seq0)
 
         for l in red.lineas:
             pp.create_line_from_parameters(
                 net, idx[l.desde], idx[l.hasta], length_km=l.longitud_km,
                 r_ohm_per_km=l.r_a(esc.temperatura_C), x_ohm_per_km=l.x_ohm_km,
                 c_nf_per_km=l.c_nF_km, max_i_ka=l.in_kA, parallel=l.paralelos,
-                name=l.id, endtemp_degree=max(esc.temperatura_C, 80.0))
+                name=l.id, endtemp_degree=max(esc.temperatura_C, 80.0),
+                **({} if l.r0_ohm_km is None or l.x0_ohm_km is None else {
+                    "r0_ohm_per_km": l.r0_ohm_km,  # incluye retorno por tierra: sin corrección térmica
+                    "x0_ohm_per_km": l.x0_ohm_km,
+                    "c0_nf_per_km": l.c0_nF_km if l.c0_nF_km is not None else l.c_nF_km}))
 
         for t in red.transformadores:
             tap_pos = esc.taps.get(t.id, t.tap_pos)
@@ -67,7 +73,8 @@ class PandapowerAdaptador(Adaptador):
                 tap_side="hv" if t.tap_lado == "at" else "lv", tap_neutral=0,
                 tap_min=t.tap_min, tap_max=t.tap_max, tap_step_percent=t.tap_paso_pct,
                 tap_pos=tap_pos, tap_changer_type="Ratio", name=t.id,
-                vk0_percent=t.uk_pct, vkr0_percent=t.ukr_pct, mag0_percent=100,
+                vk0_percent=t.uk0_pct or t.uk_pct,
+                vkr0_percent=t.ukr0_pct if t.ukr0_pct is not None else t.ukr_pct, mag0_percent=100,
                 mag0_rx=0, si0_hv_partial=0.9)
 
         for c in red.cargas:
@@ -114,21 +121,32 @@ class PandapowerAdaptador(Adaptador):
         return res
 
     # ------------------------------------------------------------------
-    def cortocircuito(self, red: Red, escenario: str | None = None) -> Resultados:
-        """Cortocircuito trifásico IEC 60909 (máximo) en todas las barras."""
+    def cortocircuito(self, red: Red, escenario: str | None = None, tipo: str = "3f") -> Resultados:
+        """Cortocircuito IEC 60909 (máximo) en todas las barras.
+
+        tipo: "3f" (trifásica, va en `cortocircuito`), "2f" (bifásica) o "1f"
+        (monofásica a tierra); las asimétricas van en `fallas[tipo]`. pandapower
+        no calcula la bifásica a tierra ("2ft")."""
         import pandapower.shortcircuit as sc
 
+        falla = {"3f": "3ph", "2f": "2ph", "1f": "1ph"}.get(tipo)
+        if falla is None:
+            raise NotImplementedError(f"pandapower no calcula fallas '{tipo}' (use 3f, 2f o 1f)")
+        if tipo == "1f" and (faltan := red.faltantes_secuencia_cero()):
+            raise ValueError("faltan datos de secuencia cero para la falla 1F: " + "; ".join(faltan))
         esc = red.escenario(escenario)
         net = self.construir(red, esc.id)
         res = Resultados(herramienta=self.nombre, escenario=esc.id, convergio=True)
-        sc.calc_sc(net, case="max", fault="3ph", ip=True)  # IEC 60909
+        sc.calc_sc(net, case="max", fault=falla, ip=True)  # IEC 60909
+        destino = res.cortocircuito if tipo == "3f" else res.fallas.setdefault(tipo, {})
         for i, b in net.bus.iterrows():
             r = net.res_bus_sc.loc[i]
             ikss = float(r.ikss_ka)
-            res.cortocircuito[b["name"]] = ResCortocircuito(
+            destino[b["name"]] = ResCortocircuito(
                 ikss_kA=ikss, skss_MVA=math.sqrt(3) * b.vn_kv * ikss,
-                ip_kA=float(r.ip_ka) if "ip_ka" in r else None)
-        res.notas.append("IEC 60909, caso máximo, falla trifásica")
+                ip_kA=float(r.ip_ka) if "ip_ka" in r and r.ip_ka == r.ip_ka else None)
+        nombres = {"3f": "trifásica", "2f": "bifásica", "1f": "monofásica a tierra"}
+        res.notas.append(f"IEC 60909, caso máximo, falla {nombres[tipo]}")
         return res
 
     def exportar(self, red: Red, carpeta: Path, escenario: str | None = None) -> list[Path]:

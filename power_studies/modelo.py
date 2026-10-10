@@ -57,6 +57,8 @@ class RedExterna(_Base):
     r_x_max: float = 0.1
     scc_min_MVA: Optional[float] = None
     r_x_min: Optional[float] = None
+    x0_x1: Optional[float] = Field(None, gt=0, description="X0/X1 de la red (fallas a tierra)")
+    r0_x0: Optional[float] = Field(None, ge=0, description="R0/X0 de la red (fallas a tierra)")
 
 
 class Linea(_Base):
@@ -69,6 +71,7 @@ class Linea(_Base):
     in_kA: float = Field(gt=0, description="Corriente nominal / ampacidad")
     r0_ohm_km: Optional[float] = None
     x0_ohm_km: Optional[float] = None
+    c0_nF_km: Optional[float] = Field(None, description="Capacitancia de secuencia cero (por defecto c_nF_km)")
     paralelos: int = 1
     tipo: Literal["cable", "aerea"] = "cable"
     material: Literal["cu", "al"] = "cu"
@@ -91,6 +94,8 @@ class Transformador(_Base):
     pcu_kW: float = Field(ge=0, description="Pérdidas en el cobre a plena carga")
     p0_kW: float = 0.0
     i0_pct: float = 0.0
+    uk0_pct: Optional[float] = Field(None, gt=0, description="Tensión de cc de secuencia cero (por defecto uk_pct)")
+    ukr0_pct: Optional[float] = Field(None, ge=0, description="Parte resistiva de uk0 (por defecto ukr_pct)")
     grupo: str = Field("Dyn5", description="Grupo de conexión, p. ej. Dyn5, Yy0")
     tap_lado: Literal["at", "bt"] = "at"
     tap_paso_pct: float = 2.5
@@ -224,6 +229,14 @@ class Red(BaseModel):
             yield l.id, l.desde, l.hasta, l
         for t in self.transformadores:
             yield t.id, t.barra_at, t.barra_bt, t
+
+    def faltantes_secuencia_cero(self) -> list[str]:
+        """Datos que faltan para calcular fallas a tierra (1F, 2FT). Vacío = completo."""
+        out = [f"red externa {x.id}: x0_x1 y r0_x0" for x in self.redes_externas
+               if x.x0_x1 is None or x.r0_x0 is None]
+        out += [f"línea {l.id}: r0_ohm_km y x0_ohm_km" for l in self.lineas
+                if l.r0_ohm_km is None or l.x0_ohm_km is None]
+        return out
 
     def supuestos(self) -> list[str]:
         out = []

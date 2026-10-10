@@ -24,7 +24,7 @@ class ResRama(BaseModel):
 
 
 class ResCortocircuito(BaseModel):
-    ikss_kA: float
+    ikss_kA: float = Field(description="Corriente inicial de cortocircuito (en fallas 1F, la de la fase fallada)")
     skss_MVA: float
     ip_kA: Optional[float] = None
 
@@ -37,6 +37,8 @@ class Resultados(BaseModel):
     barras: dict[str, ResBarra] = Field(default_factory=dict)
     ramas: dict[str, ResRama] = Field(default_factory=dict)
     cortocircuito: dict[str, ResCortocircuito] = Field(default_factory=dict)
+    fallas: dict[str, dict[str, ResCortocircuito]] = Field(
+        default_factory=dict, description="Fallas asimétricas: tipo ('1f', '2f', '2ft') -> barra -> resultado")
     perdidas_totales_kW: Optional[float] = None
     notas: list[str] = Field(default_factory=list)
 

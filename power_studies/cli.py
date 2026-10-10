@@ -71,6 +71,15 @@ def cmd_validar(a):
             print("  -", s)
 
 
+def _fallas(ad, red, esc, fallas, res):
+    """Agrega a `res.fallas` las fallas asimétricas pedidas con --fallas 1f,2f."""
+    for tipo in [f.strip() for f in (fallas or "").split(",") if f.strip()]:
+        if tipo == "3f":
+            res.cortocircuito = ad.cortocircuito(red, esc).cortocircuito
+        else:
+            res.fallas.update(ad.cortocircuito(red, esc, tipo).fallas)
+
+
 def cmd_simular(a):
     from .adaptadores import obtener
     from .validacion import contra_referencia
@@ -83,6 +92,7 @@ def cmd_simular(a):
         res = ad.flujo(red, esc)
         if a.cortocircuito and "cortocircuito" in ad.capacidades:
             res.cortocircuito = ad.cortocircuito(red, esc).cortocircuito
+        _fallas(ad, red, esc, a.fallas, res)
         ruta = sal / f"resultados_{ad.nombre}_{esc}.json"
         res.guardar(ruta)
         print(f"[{esc}] convergió={res.convergio} iter={res.iteraciones} -> {ruta}")
@@ -154,6 +164,7 @@ def cmd_informe(a):
         r = ad.flujo(red, esc)
         if a.cortocircuito and "cortocircuito" in ad.capacidades:
             r.cortocircuito = ad.cortocircuito(red, esc).cortocircuito
+        _fallas(ad, red, esc, a.fallas, r)
         resultados[esc] = r
     cruces = []
     for h in (a.cruce or "").split(","):
@@ -195,6 +206,7 @@ def main(argv=None):
     q = s.add_parser("simular"); q.add_argument("red")
     q.add_argument("--herramienta", default="pandapower"); q.add_argument("--escenario")
     q.add_argument("--cortocircuito", action="store_true"); q.add_argument("--salida", default="resultados")
+    q.add_argument("--fallas", help="fallas asimétricas IEC 60909, p. ej. 1f,2f")
     q.set_defaults(f=cmd_simular)
 
     q = s.add_parser("comparar"); q.add_argument("red")
@@ -213,6 +225,7 @@ def main(argv=None):
     q.add_argument("--herramienta", default="pandapower"); q.add_argument("--escenario")
     q.add_argument("--cruce", help="herramientas para validación cruzada, p. ej. opendss")
     q.add_argument("--cortocircuito", action="store_true")
+    q.add_argument("--fallas", help="fallas asimétricas IEC 60909, p. ej. 1f,2f")
     q.add_argument("--textos", help="YAML con introduccion/analisis/conclusiones del agente redactor")
     q.set_defaults(f=cmd_informe)
 

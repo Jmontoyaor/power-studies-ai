@@ -37,9 +37,13 @@ tienen capacitancia; transformador SATTRAFO con su grupo y desfase (Dyn5, YNd11,
 Yy0...; `Coupl = tipo·1000 + desfase`, tipo 1 = Y y 2 = D); cargas como
 impedancia constante.
 
-Cortocircuito trifásico: `exportar(..., falla_3f="BARRA")` agrega la impedancia
-de la red Zq = c·Un²/Scc, sube la fuente a c·Un (c = 1,1), quita las cargas y pone
-una falla franca en la barra; `leer_falla(ruta.lis, red, barra)` devuelve Ik'' en kA.
+Cortocircuito: `exportar(..., falla="BARRA", tipo_falla="3f"|"1f"|"2f"|"2ft")`
+agrega la impedancia de la red Zq = c·Un²/Scc (con su secuencia cero si el modelo
+trae `x0_x1` y `r0_x0`), sube la fuente a c·Un (c = 1,1), quita las cargas y pone
+el elemento de falla en la barra (fase A en 1F; fases B-C en 2F y 2FT).
+`leer_falla(ruta.lis, red, barra)` devuelve Ik'' en kA (la fase con más corriente).
+Las fallas a tierra exigen secuencia cero en red y líneas; si falta, el adaptador
+avisa qué dato falta en vez de suponerlo (`Red.faltantes_secuencia_cero()`).
 
 Validación (`tests/test_atpdraw.py`, con salidas reales de ATP en `tests/datos/`):
 
@@ -49,6 +53,7 @@ Validación (`tests/test_atpdraw.py`, con salidas reales de ATP en `tests/datos/
 | 75 kVA, flujo base | igual a pandapower en magnitud y ángulo (BT a −151,04°: el Dyn5 queda bien) |
 | 75 kVA, falla 3F en PCC y MT | igual a pandapower IEC 60909 (Δ < 0,1 %) |
 | 75 kVA, falla 3F en BT y TGD | ATP +2,3 % y +1,7 % sobre IEC 60909 |
+| 75 kVA, fallas 1F, 2F y 2FT en las 4 barras | ATP igual a componentes simétricas a mano (Δ ≤ 0,01 %); pandapower igual al cálculo a mano con K_T |
 
 Las diferencias que quedan son de método, no de red:
 
@@ -60,8 +65,8 @@ Las diferencias que quedan son de método, no de red:
   calcula la corriente física sin ese factor. La prueba lo comprueba con el
   cálculo a mano. No se agrega K_T a ATP para que "cuadre".
 
-Pendiente: grupos zigzag, transformadores de tres devanados, redes malladas en
-el dibujo, fallas asimétricas (paso 2 de `docs/hoja_de_ruta.md`).
+Pendiente: grupos zigzag, transformadores de tres devanados, uk0 distinto de uk
+en ATPDraw, redes malladas en el dibujo.
 
 ### ATP (plantilla)
 
