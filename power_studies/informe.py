@@ -190,6 +190,11 @@ def generar(red: Red, resultados: dict[str, Resultados], salida: str | Path,
             _tabla(doc, ["Barra", "Ik'' [kA]", "Sk'' [MVA]", "ip [kA]"],
                    [[b, _f(c.ikss_kA, 3), _f(c.skss_MVA, 2), _f(c.ip_kA or 0, 3)]
                     for b, c in res.cortocircuito.items()])
+        nombres = {"1f": "monofásica a tierra", "2f": "bifásica", "2ft": "bifásica a tierra"}
+        for tipo, por_barra in res.fallas.items():
+            doc.add_paragraph(f"Falla {nombres.get(tipo, tipo)} (IEC 60909, máxima):").runs[0].bold = True
+            _tabla(doc, ["Barra", "Ik'' [kA]", "ip [kA]"],
+                   [[b, _f(c.ikss_kA, 3), _f(c.ip_kA or 0, 3)] for b, c in por_barra.items()])
 
     # ---------- 5. comparación de escenarios ----------
     if len(resultados) > 1:

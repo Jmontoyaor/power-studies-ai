@@ -27,8 +27,12 @@ redes_externas:
     u_pu: 1.0
     scc_max_MVA: 150
     r_x_max: 0.1
+    x0_x1: 1.0
+    r0_x0: 0.1
     origen: supuesto
-    nota: Pedir al operador de red la potencia de cortocircuito en el PCC.
+    nota: >
+      Pedir al operador de red la potencia de cortocircuito trifásica y monofásica
+      en el PCC. X0/X1 = 1 y R0/X0 = 0,1 son supuestos para poder calcular fallas a tierra.
 
 lineas:
   - id: CABLE_MT
@@ -42,9 +46,14 @@ lineas:
     in_kA: 0.148
     material: al
     temperatura_ref_C: 20
+    r0_ohm_km: 1.821
+    x0_ohm_km: 0.48
     conductor: 1/0 AWG Al 15 kV
     origen: supuesto
-    nota: In deducida de la cargabilidad (≈3,1 A / 2,1 %); calibre y longitud por confirmar.
+    nota: >
+      In deducida de la cargabilidad (≈3,1 A / 2,1 %); calibre y longitud por confirmar.
+      Secuencia cero con la regla práctica Z0 ≈ 3·Z1: reemplazar por la ficha del cable
+      (depende de la pantalla y su puesta a tierra).
   - id: ALIM_BT
     nombre: Alimentador BT
     desde: BT
@@ -55,9 +64,13 @@ lineas:
     in_kA: 0.26
     material: cu
     temperatura_ref_C: 75
+    r0_ohm_km: 0.609
+    x0_ohm_km: 0.405
     conductor: 4/0 AWG Cu (90 °C)
     origen: supuesto
-    nota: In ≈ 260 A deducida (171 A / 65,9 %); longitud calibrada para ΔU ≈ 1 %.
+    nota: >
+      In ≈ 260 A deducida (171 A / 65,9 %); longitud calibrada para ΔU ≈ 1 %.
+      Secuencia cero con la regla práctica Z0 ≈ 3·Z1 (depende del retorno por neutro/tierra).
 
 transformadores:
   - id: TR1

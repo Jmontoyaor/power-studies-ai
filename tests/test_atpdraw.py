@@ -48,7 +48,8 @@ def _terminales_y_cables(xml: str):
         x, y = int(cc.get("PosX")), int(cc.get("PosY"))
         for n in cc.iter("node"):
             # Nodos deshabilitados, a tierra o internos (estrella del SATTRAFO) no se cablean.
-            if n.get("Disabled") == "true" or n.get("Ground") == "1" or n.get("Kind") == "2":
+            if (n.get("Disabled") == "true" or n.get("Ground") == "1" or n.get("Kind") == "2"
+                    or n.get("Value", "").startswith("FALLN")):  # neutro flotante de la falla 2F
                 continue
             terminales.append((comp.get("Name"), n, (x + int(n.get("PosX")), y + int(n.get("PosY")))))
     cables = [((int(c.get("Pos1X")), int(c.get("Pos1Y"))), (int(c.get("Pos2X")), int(c.get("Pos2Y"))))
@@ -56,7 +57,8 @@ def _terminales_y_cables(xml: str):
     return raiz, terminales, cables
 
 
-CASOS_XML = [(EJEMPLO, {}), (SUB75, {}), (SUB75, {"falla_3f": "BT"}), (EJEMPLO, {"falla_3f": "B1"})]
+CASOS_XML = [(EJEMPLO, {}), (SUB75, {}), (SUB75, {"falla": "BT"}), (EJEMPLO, {"falla": "B1"}),
+             (SUB75, {"falla": "MT", "tipo_falla": "1f"}), (SUB75, {"falla": "TGD", "tipo_falla": "2f"})]
 
 
 @pytest.mark.parametrize("caso,opciones", CASOS_XML)
@@ -119,13 +121,13 @@ def test_tap_cambia_tension_de_devanado(ejemplo):
 
 
 def test_falla_agrega_red_y_quita_cargas(sub75):
-    raiz = ET.fromstring(generar_xml(sub75, falla_3f="TGD"))
+    raiz = ET.fromstring(generar_xml(sub75, falla="TGD"))
     (f,) = _comp(raiz, "ACSOURCE")
     assert _dato(f, "AmplitudeA") == pytest.approx(11400 * C_IEC)
     cargas = [cc for cc in _comp(raiz, "RLCY3") if _dato(cc, "R_1") > R_FALLA]
     assert cargas == []
     with pytest.raises(KeyError):
-        generar_xml(sub75, falla_3f="NO_EXISTE")
+        generar_xml(sub75, falla="NO_EXISTE")
 
 
 def test_lis_reproduce_el_caso_de_4_barras(ejemplo):
@@ -172,5 +174,5 @@ def test_exportar_escribe_xml(ejemplo, tmp_path):
     (ruta,) = obtener("atpdraw").exportar(ejemplo, tmp_path, "E1")
     assert ruta.name == "ejemplo_didactico_4_barras_E1.xml"
     assert ET.parse(ruta).getroot().get("Application") == "ATPDraw"
-    (falla,) = obtener("atpdraw").exportar(ejemplo, tmp_path, "E1", falla_3f="B4")
-    assert falla.name == "ejemplo_didactico_4_barras_E1_falla_B4.xml"
+    (falla,) = obtener("atpdraw").exportar(ejemplo, tmp_path, "E1", falla="B4")
+    assert falla.name == "ejemplo_didactico_4_barras_E1_falla3f_B4.xml"
