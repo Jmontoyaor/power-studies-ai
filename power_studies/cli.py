@@ -111,6 +111,9 @@ def cmd_malla(a):
           f"{'CUMPLE' if r.cumple_paso else 'NO CUMPLE'}")
     for n in r.notas:
         print("  nota:", n)
+    if a.dxf:
+        from .dxf import planta_malla
+        print(f"  planta DXF -> {planta_malla(Malla(**datos['malla']), a.dxf, r, datos.get('titulo', 'Malla de puesta a tierra'))}")
     sys.exit(0 if r.cumple else 2)
 
 
@@ -182,6 +185,9 @@ def cmd_subestacion(a):
         if conf == d["configuracion"] or not a.comparar:
             for ruta in dibujar(t, a.salida):
                 print(f"  unifilar -> {ruta}")
+            if a.dxf:
+                from .dxf import unifilar_subestacion
+                print(f"  unifilar DXF -> {unifilar_subestacion(t, a.dxf)}")
 
 
 def cmd_simular(a):
@@ -314,7 +320,8 @@ def main(argv=None):
     q.set_defaults(f=cmd_simular)
 
     q = s.add_parser("malla", help="malla de puesta a tierra IEEE 80-2013")
-    q.add_argument("diseno", help="YAML con suelo, malla y falla"); q.set_defaults(f=cmd_malla)
+    q.add_argument("diseno", help="YAML con suelo, malla y falla")
+    q.add_argument("--dxf", help="planta de la malla para AutoCAD (requiere ezdxf)"); q.set_defaults(f=cmd_malla)
 
     q = s.add_parser("baterias", help="banco de baterías IEEE 485-2020")
     q.add_argument("diseno", help="YAML con sistema, ciclo y celda"); q.set_defaults(f=cmd_baterias)
@@ -323,6 +330,7 @@ def main(argv=None):
     q.add_argument("diseno", help="YAML con nombre, tension_kV, configuracion y bahias")
     q.add_argument("--salida", default="unifilar_subestacion.png", help="PNG, SVG o PDF (varias, separadas por coma)")
     q.add_argument("--comparar", action="store_true", help="compara las seis configuraciones")
+    q.add_argument("--dxf", help="unifilar para AutoCAD (requiere ezdxf)")
     q.set_defaults(f=cmd_subestacion)
 
     q = s.add_parser("comparar"); q.add_argument("red")

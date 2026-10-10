@@ -24,6 +24,7 @@ principio de siempre: **un modelo neutro (`red.yaml`) y un adaptador por herrami
 | Malla de puesta a tierra IEEE 80-2013 | `power-studies malla`, validado contra el Anexo B |
 | Banco de baterías IEEE 485-2020 y cargador IEEE 946-2020 | `power-studies baterias`, validado contra la Figura A.1 (485) y los ejemplos B.3 y B.4 (946) |
 | Unifilar de subestación por configuración de barras | `power-studies subestacion`, con comparación de confiabilidad |
+| Planos para AutoCAD (DXF) | `--dxf` en `subestacion` (unifilar) y `malla` (planta a escala); requiere `pip install -e ".[cad]"` |
 | Informe Word, verificación NTC/RETIE | `power-studies informe`, `power-studies verificar` |
 
 ## Pasos
