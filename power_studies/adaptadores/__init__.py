@@ -1,5 +1,6 @@
 """Registro de adaptadores. Para sumar una herramienta: escriba la clase y
 agréguela a REGISTRO."""
+from .atpdraw_ad import ATPDrawAdaptador
 from .base import Adaptador
 from .opendss_ad import OpenDSSAdaptador
 from .pandapower_ad import PandapowerAdaptador
@@ -8,7 +9,7 @@ from .powerfactory_ad import PowerFactoryAdaptador
 
 REGISTRO: dict[str, type[Adaptador]] = {
     a.nombre: a for a in (PandapowerAdaptador, OpenDSSAdaptador, PowerFactoryAdaptador,
-                          ATPAdaptador, ETAPAdaptador, PVsystAdaptador)
+                          ATPAdaptador, ATPDrawAdaptador, ETAPAdaptador, PVsystAdaptador)
 }
 
 

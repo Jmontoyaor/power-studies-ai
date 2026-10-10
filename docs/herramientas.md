@@ -5,7 +5,8 @@
 | **pandapower** | Python | sí | sí (flujo, cortocircuito IEC 60909) | unifilar propio con resultados (`power_studies/diagrama.py`) | ninguno |
 | **OpenDSS** | `opendssdirect.py` + script `.dss` | sí | sí (flujo) | unifilar propio | ninguno |
 | **PowerFactory** | API Python oficial (`powerfactory`) | sí (`pf_construir_red.py`) | sí (ComLdf, ComShc) | auto-diagramado de PF; si no existe, símbolos ubicados con las posiciones del modelo | Windows + licencia con Python |
-| **ATP / ATPDraw** | archivo `.atp` (texto en columnas) | por plantilla | sí, en lote con `tpbig`/`runATP` | el dibujo de ATPDraw del ingeniero (la plantilla) | ATP instalado |
+| **ATPDraw** | proyecto XML de ATPDraw (≥ 7.0) | sí (`atpdraw_ad.py`) | sí, ATP desde ATPDraw (F2) | dibujado por el adaptador desde `red.yaml` | ATPDraw ≥ 7.0 + ATP |
+| **ATP (plantilla)** | archivo `.atp` (texto en columnas) | por plantilla | sí, en lote con `tpbig`/`runATP` | el dibujo de ATPDraw del ingeniero (la plantilla) | ATP instalado |
 | **ETAP** | importación de datos (Excel/DataX) o API según licencia | tablas generadas | en ETAP | ETAP ubica los elementos importados; acomodo manual | ETAP; verificar módulo de importación/API de su licencia |
 | **PVsyst** | modo *Batch* sobre un proyecto plantilla | parámetros por CSV | en PVsyst | reportes y diagramas propios de PVsyst | PVsyst con modo batch |
 
@@ -17,7 +18,31 @@ ingeniero dibuje una vez el caso tipo, con sus símbolos, y lo marque con
 variables `{{...}}`. El adaptador produce una copia por estudio y escenario. Si
 la topología cambia mucho, se hace una plantilla nueva.
 
-### ATP
+### ATPDraw (dibujo automático)
+
+ATPDraw abre proyectos en formato XML ("XML text format", desde la versión 7.0).
+`power-studies exportar red.yaml --herramienta atpdraw --salida x` escribe ese XML
+con cada elemento dibujado, conectado y con los nombres de barra del modelo.
+
+1. Abra el `.xml` en ATPDraw (File → Open). Si quiere, guárdelo como `.acp`.
+2. Corra ATP con F2. Las sondas de cada barra piden la solución de régimen permanente.
+3. `leer_lis(ruta.lis, red)` devuelve las tensiones de barra en p.u.
+
+Reglas del formato (verificadas con ATPDraw 7.8): la conectividad es por
+coordenadas (múltiplos de 10) o cables `<conn>`; los nombres de nodo se conservan
+solo con `UserNamed="true"`; tierra = `Ground="1"`; nombre base ≤ 5 caracteres.
+
+Modelo: fuente ideal en la barra slack, líneas R+L serie, transformador ideal
+Y-Y + impedancia de cortocircuito en BT, cargas como impedancia constante.
+Pendiente: capacitancia de líneas, desfase de grupos Dyn y equivalente de
+Thevenin para cortocircuito.
+
+Validación (`tests/test_atpdraw.py`): con las cargas calculadas a la tensión de
+operación, ATP reproduce el Newton-Raphson del caso de 4 barras (Δu = 0,0000 p.u.).
+Con cargas a tensión nominal (impedancia constante) B4 queda +0,005 p.u. sobre el
+NR, que usa cargas P-Q: es diferencia de modelo de carga, no de red.
+
+### ATP (plantilla)
 
 1. Dibuje el caso en ATPDraw y genere el `.atp` (*ATP → Make File*).
 2. En el `.atp`, reemplace cada número a parametrizar por `{{VARIABLE|ancho}}`,

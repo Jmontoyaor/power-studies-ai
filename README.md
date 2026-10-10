@@ -45,7 +45,8 @@ pandapower  OpenDSS   PowerFactory      ATP       ETAP     PVsyst
 | pandapower | automático | flujo + cortocircuito IEC 60909 | propio (SVG/PNG) | ✅ probado, reproduce el informe del taller |
 | OpenDSS | automático (`.dss`) | flujo | propio | ✅ probado, coincide con pandapower (Δu < 0,001 p.u.) |
 | PowerFactory | automático (API Python) | flujo + cortocircuito | auto-diagramado o símbolos por posición | ⚠️ escrito y probado con API simulada; falta prueba con licencia |
-| ATP / ATPDraw | plantilla del ingeniero + variables | en lote (`ATP_EXE`) | el de la plantilla | ⚠️ generación probada; ejecución depende de su ATP |
+| ATPDraw | automático (proyecto XML de ATPDraw ≥ 7.0) | ATP desde ATPDraw (F2) | dibujado por el adaptador | ✅ probado con ATPDraw 7.8 + tpbigm: reproduce el caso de 4 barras |
+| ATP (plantilla) | plantilla del ingeniero + variables | en lote (`ATP_EXE`) | el de la plantilla | ⚠️ generación probada; ejecución depende de su ATP |
 | ETAP | tablas para importación | en ETAP | ETAP | 🧪 columnas por ajustar a su versión |
 | PVsyst | CSV de modo batch | en PVsyst | reportes de PVsyst | 🧪 por ajustar a su versión |
 
