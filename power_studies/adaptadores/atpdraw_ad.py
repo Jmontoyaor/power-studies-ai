@@ -141,16 +141,18 @@ def _linerl3s(lz: _Lienzo, x: int, y: int, entrada: str, salida: str,
 
 
 def _acsource(lz: _Lienzo, x: int, y: int, nodo: str, u_ll_kv: float, angulo: float, f_hz: float):
-    v = _f(u_ll_kv * 1000)  # Scaling=2: amplitud en V eficaces de línea
-    datos = [("Kind", "Volt/Curr", 0), ("AmplitudeA", "SOURCE", v), ("AmplitudeB", "SOURCE", v),
-             ("AmplitudeC", "SOURCE", v), ("Frequency", "Hz", _f(f_hz)),
-             ("PhaseAngleA", "degrees", _f(angulo)), ("PhaseAngleB", "degrees", _f(angulo - 120)),
-             ("PhaseAngleC", "degrees", _f(angulo + 120)), ("Power", "VA", 0), ("cosPhi", "-1..+1", 0),
-             ("StartA", "sec", -1), ("StartB", "sec", -1), ("StartC", "sec", -1),
-             ("StopA", "sec", 100), ("StopA", "sec", 100), ("StopA", "sec", 100),
-             ("AngleUnit", "0/1", 0), ("Phases", "0/1/2", 1), ("Scaling", "0/1/2", 2),
-             ("Grounding", "0/1", 0)]
-    lz.comp("ACSOURCE", x, y, [_nodo("AC", nodo, 20, 0, 3)], datos)
+    """Fuente trifásica del catálogo de ATPDraw (Phases=1: trifásica; Scaling=2: V eficaces de línea)."""
+    from ..atpdraw_catalogo import componente
+    v = _f(u_ll_kv * 1000)
+    c = componente("ACSOURCE", x, y, nodos={"AC": nodo}, datos={
+        "Kind": 0, "AmplitudeA": v, "AmplitudeB": v, "AmplitudeC": v, "Frequency": _f(f_hz),
+        "PhaseAngleA": _f(angulo), "PhaseAngleB": _f(angulo - 120), "PhaseAngleC": _f(angulo + 120),
+        "Power": 0, "cosPhi": 0, "StartA": -1, "StartB": -1, "StartC": -1, "StopA": [100, 100, 100],
+        "AngleUnit": 0, "Phases": 1, "Scaling": 2, "Grounding": 0})
+    for n in c.find("comp_content").iter("node"):  # terminales trifásicos como en los proyectos de ATPDraw
+        if n.get("Name") in ("AC", "ACNEG", "Internal"):
+            n.set("NumPhases", "3")
+    lz.objetos.append(c)
 
 
 def _devanados(grupo: str) -> tuple[bool, bool, int]:
@@ -438,6 +440,8 @@ class ATPDrawAdaptador(Adaptador):
     def exportar(self, red: Red, carpeta: Path, escenario: str | None = None,
                  u_carga_pu: dict[str, float] | None = None,
                  falla: str | None = None, tipo_falla: str = "3f") -> list[Path]:
+        from ..atpdraw_catalogo import retroalimentar
+        retroalimentar()  # aprende de proyectos XML nuevos antes de generar
         carpeta.mkdir(parents=True, exist_ok=True)
         esc = red.escenario(escenario)
         base = unicodedata.normalize("NFKD", red.proyecto).encode("ascii", "ignore").decode()

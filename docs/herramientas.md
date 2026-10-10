@@ -20,6 +20,8 @@ la topología cambia mucho, se hace una plantilla nueva.
 
 ### ATPDraw (dibujo automático)
 
+Guía completa, catálogo de componentes y cómo ampliarlo: [`atpdraw.md`](atpdraw.md).
+
 ATPDraw abre proyectos en formato XML ("XML text format", desde la versión 7.0).
 `power-studies exportar red.yaml --herramienta atpdraw --salida x` escribe ese XML
 con cada elemento dibujado, conectado y con los nombres de barra del modelo.
