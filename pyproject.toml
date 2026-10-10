@@ -23,6 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 opendss = ["opendssdirect.py"]
+cad = ["ezdxf"]
 dev = ["pytest"]
 
 [project.scripts]
