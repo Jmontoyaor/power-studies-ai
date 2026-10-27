@@ -15,7 +15,7 @@ IA (Claude Code u OpenCode) orquestan el estudio sin inventar números.
 
 ```bash
 pip install -e ".[opendss,cad,dev]"     # cad = exportación a AutoCAD (ezdxf)
-python -m pytest                          # 120 pruebas, incluidas las validaciones contra normas
+python -m pytest                          # 138 pruebas, incluidas las validaciones contra normas
 
 power-studies simular casos/subestacion_75kva/red.yaml --escenario base --cortocircuito --fallas 1f,2f
 power-studies informe-latex casos/informe_ejemplo/estudio.yaml --salida informe/
@@ -56,6 +56,13 @@ power-studies exportar casos/subestacion_75kva/red.yaml --herramienta atpdraw --
 power-studies subestacion casos/subestacion_ejemplo/subestacion.yaml --dxf unifilar.dxf
 power-studies malla casos/ieee80_ejemplo_b2/malla.yaml --dxf malla.dxf
 ```
+
+## Aprende de sus archivos
+
+Deje archivos reales de cualquier programa en `retroalimentacion/<programa>/` (proyectos de
+ATPDraw en XML, `.dss` de OpenDSS, `.dxf` de AutoCAD, exportes de PowerFactory, plantillas de
+ETAP, `.PAN`/`.OND` de PVsyst). Cada vez que se usa `power-studies`, aprende de lo nuevo, y
+`power-studies conocimiento` muestra lo aprendido. Guía: [`docs/retroalimentacion.md`](docs/retroalimentacion.md).
 
 ## Cómo se hace un estudio nuevo
 

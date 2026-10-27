@@ -209,8 +209,6 @@ def cmd_informe_latex(a):
 def cmd_atpdraw_catalogo(a):
     """Catálogo de componentes de ATPDraw aprendido de proyectos XML."""
     from . import atpdraw_catalogo as cat
-    if not a.construir:
-        cat.retroalimentar()
     if a.construir:
         anterior = cat.cargar() if cat.RUTA.exists() and not a.desde_cero else None
         c = cat.construir(a.construir, cat.RUTA, anterior)
@@ -224,6 +222,40 @@ def cmd_atpdraw_catalogo(a):
         fases = max((n["fases"] for n in e["nodos"]), default=1)
         print(f"  {nombre:16s} {len(e['nodos']):2d} terminales  {len(e['datos']):3d} datos  {fases}F  "
               f"({e['veces']} usos en {len(e['proyectos'])} proyectos)")
+
+
+def cmd_retroalimentar(a):
+    """Procesa ya los archivos nuevos de retroalimentacion/<programa>/."""
+    from .retroalimentacion import resumen, retroalimentar
+    if not retroalimentar([a.programa] if a.programa else None):
+        print("  sin archivos nuevos")
+    for programa, linea in resumen().items():
+        print(f"  {programa:13s} {linea}")
+
+
+def cmd_conocimiento(a):
+    """Muestra lo aprendido de un programa (o el resumen de todos)."""
+    import json as _json
+
+    from .retroalimentacion import cargar, resumen
+    if not a.programa:
+        for programa, linea in resumen().items():
+            print(f"  {programa:13s} {linea}")
+        return
+    if a.programa == "atpdraw":
+        from . import atpdraw_catalogo as cat
+        print(cat.describir(a.elemento) if a.elemento else "\n".join(cat.cargar()["componentes"]))
+        return
+    k = cargar(a.programa)
+    if a.elemento:
+        for seccion in ("clases", "capas", "bloques", "tablas", "objetos"):
+            if a.elemento in k.get(seccion, {}):
+                print(_json.dumps(k[seccion][a.elemento], ensure_ascii=False, indent=1))
+                return
+        raise SystemExit(f"'{a.elemento}' no aparece en lo aprendido de {a.programa}")
+    for seccion in ("clases", "capas", "bloques", "tablas", "objetos"):
+        if k.get(seccion):
+            print(f"  {seccion}: {', '.join(k[seccion])}")
 
 
 def cmd_simular(a):
@@ -381,6 +413,14 @@ def main(argv=None):
     q.add_argument("--desde-cero", action="store_true", help="no fusionar con el catálogo actual")
     q.set_defaults(f=cmd_atpdraw_catalogo)
 
+    q = s.add_parser("retroalimentar", help="aprende de los archivos de retroalimentacion/<programa>/")
+    q.add_argument("--programa", choices=["atpdraw", "opendss", "autocad", "powerfactory", "etap", "pvsyst"])
+    q.set_defaults(f=cmd_retroalimentar)
+
+    q = s.add_parser("conocimiento", help="lo aprendido de cada programa")
+    q.add_argument("programa", nargs="?"); q.add_argument("elemento", nargs="?")
+    q.set_defaults(f=cmd_conocimiento)
+
     q = s.add_parser("comparar"); q.add_argument("red")
     q.add_argument("--herramientas", default="pandapower,opendss"); q.add_argument("--escenario", default="todos")
     q.add_argument("--tol-u", type=float, default=0.005); q.add_argument("--tol-carga", type=float, default=2.0)
@@ -409,6 +449,12 @@ def main(argv=None):
     q.set_defaults(f=cmd_importar_pf)
 
     a = p.parse_args(argv)
+    if a.cmd not in ("retroalimentar", "atpdraw-catalogo"):
+        try:  # cada uso del software aprende de los archivos nuevos (ver retroalimentacion.py)
+            from .retroalimentacion import retroalimentar
+            retroalimentar()
+        except Exception as e:  # nunca bloquea el comando pedido
+            print(f"[retroalimentación] omitida: {e}")
     a.f(a)
 
 

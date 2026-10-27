@@ -26,7 +26,7 @@ from pathlib import Path
 
 RUTA = Path(__file__).parent / "adaptadores" / "atpdraw_catalogo.json"
 INDICE = Path(__file__).parent / "adaptadores" / "atpdraw_catalogo_indice.json"
-CARPETA_REPO = Path(__file__).resolve().parents[1] / "atpdraw" / "proyectos_xml"
+CARPETA_REPO = Path(__file__).resolve().parents[1] / "retroalimentacion" / "atpdraw"
 MAX_EJEMPLOS = 5
 
 
@@ -143,7 +143,7 @@ def describir(nombre: str, catalogo: dict | None = None) -> str:
 
 
 def carpetas_de_proyectos() -> list[Path]:
-    """Dónde buscar proyectos XML: atpdraw/proyectos_xml del repo y las carpetas de la
+    """Dónde buscar proyectos XML: retroalimentacion/atpdraw del repo y las carpetas de la
     variable de entorno POWER_STUDIES_ATPDRAW (separadas por ';' en Windows, ':' en Linux)."""
     carpetas = [CARPETA_REPO]
     extra = os.environ.get("POWER_STUDIES_ATPDRAW", "")

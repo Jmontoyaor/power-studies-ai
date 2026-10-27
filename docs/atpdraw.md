@@ -55,7 +55,7 @@ Si un nombre de dato o terminal no existe, el error lista los válidos.
 ### Ampliar el catálogo (retroalimentación automática)
 
 1. En ATPDraw abra el proyecto y haga *File → Save As → XML text format*.
-2. Guarde el `.xml` en `atpdraw/proyectos_xml/` del repo (o en una carpeta listada en la
+2. Guarde el `.xml` en `retroalimentacion/atpdraw/` del repo (o en una carpeta listada en la
    variable de entorno `POWER_STUDIES_ATPDRAW`, separadas por `;` en Windows).
 3. Listo: la próxima vez que use `exportar --herramienta atpdraw` o `atpdraw-catalogo`,
    el proyecto se incorpora solo y se avisa qué componentes nuevos aprendió.
