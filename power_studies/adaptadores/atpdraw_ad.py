@@ -440,8 +440,8 @@ class ATPDrawAdaptador(Adaptador):
     def exportar(self, red: Red, carpeta: Path, escenario: str | None = None,
                  u_carga_pu: dict[str, float] | None = None,
                  falla: str | None = None, tipo_falla: str = "3f") -> list[Path]:
-        from ..atpdraw_catalogo import retroalimentar
-        retroalimentar()  # aprende de proyectos XML nuevos antes de generar
+        from ..retroalimentacion import retroalimentar
+        retroalimentar(["atpdraw"])  # aprende de proyectos XML nuevos antes de generar
         carpeta.mkdir(parents=True, exist_ok=True)
         esc = red.escenario(escenario)
         base = unicodedata.normalize("NFKD", red.proyecto).encode("ascii", "ignore").decode()

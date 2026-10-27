@@ -8,7 +8,7 @@ detalle técnico de cada paso está en la [hoja de ruta](hoja_de_ruta.md).
 Desde un `red.yaml` el proyecto ya calcula flujo, cortocircuito (3F, 2F, 1F, 2FT), malla de
 puesta a tierra, banco de baterías con su cargador y configuraciones de subestación; dibuja
 en ATPDraw y AutoCAD; y arma el informe en LaTeX/PDF. Todo validado contra ejemplos de las
-normas, con 130 pruebas.
+normas, con 138 pruebas. Además aprende solo de los archivos reales de cada programa que se le dejan en `retroalimentacion/`.
 
 ## Lo que llevamos
 
@@ -24,6 +24,7 @@ normas, con 130 pruebas.
 | 2026-10-10 | Informe LaTeX/PDF que decide sus secciones | #5 | compila en las pruebas |
 | 2026-10-10 | README reescrito | #6 | enlaces y comandos verificados |
 | 2026-10-10 | Catálogo de 257 componentes de ATPDraw con retroalimentación automática | #7 | el adaptador escribe el formato real de ATPDraw |
+| 2026-10-10 | Retroalimentación para todos los programas (ATPDraw, OpenDSS, AutoCAD, PowerFactory, ETAP, PVsyst) en cada uso del software | #8 | 8 pruebas, una por programa, y prueba de extremo a extremo |
 
 ### Hallazgos que conviene recordar
 

@@ -72,13 +72,16 @@ detenerse y reportar, nunca "ajustar" números para que cuadren.
 
 ## Retroalimentación de herramientas
 
-- **ATPDraw**: todo proyecto de ATPDraw que se use o revise en un estudio se guarda también
-  como XML (*Save As → XML text format*) en `atpdraw/proyectos_xml/`. El catálogo de
-  componentes aprende de él solo la próxima vez que se use `power-studies` con ATPDraw.
-  Antes de agregar un componente al adaptador, consulte `power-studies atpdraw-catalogo NOMBRE`
-  en vez de investigar el formato. Guía: `docs/atpdraw.md`.
+- **Todo archivo real de un programa que se use o revise en un estudio** se copia también a
+  `retroalimentacion/<programa>/` en un formato de texto: ATPDraw como XML, OpenDSS `.dss`,
+  AutoCAD `.dxf`, PowerFactory `.dgs/.csv/.xlsx`, ETAP `.xlsx/.csv`, PVsyst `.PAN/.OND/.csv`.
+  El proyecto aprende de él en el siguiente uso de `power-studies` (guía:
+  `docs/retroalimentacion.md`).
+- **Antes de investigar un formato, consulte lo aprendido**: `power-studies conocimiento
+  <programa> [elemento]` (para ATPDraw: `power-studies atpdraw-catalogo NOMBRE`).
 - **Normas**: las erratas o detalles encontrados al validar contra un ejemplo de norma se
   anotan en la prueba correspondiente y en `docs/RESUMEN.md`.
+- Al cerrar una entrega, actualice `docs/RESUMEN.md` (lo que llevamos y lo que esperamos).
 
 ## Desarrollo del marco
 
